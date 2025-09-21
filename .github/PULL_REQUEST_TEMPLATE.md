@@ -8,7 +8,7 @@
 <이미지 또는 gif>
 
 ## 🔗 이슈 연결
-- PID-~~
+- PIT-~~
 
 ## ✅ 체크리스트
 - [ ] merge branch 가 develop 인지 확인
