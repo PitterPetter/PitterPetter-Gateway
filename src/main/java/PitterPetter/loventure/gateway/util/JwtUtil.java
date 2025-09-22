@@ -10,7 +10,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
-@Component
+//@Component
 public class JwtUtil {
 	private final Key key;
 

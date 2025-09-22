@@ -18,7 +18,7 @@ import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
-@Component
+//@Component
 @RequiredArgsConstructor
 public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter 메서드
 	private static final Logger log = LoggerFactory.getLogger(JwtAuthorizationFilter.class); // 요청 경로, 인증 여부, 에러 등 로깅
