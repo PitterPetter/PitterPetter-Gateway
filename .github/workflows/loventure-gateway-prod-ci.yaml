@@ -52,3 +52,22 @@ jobs:
           repository: PitterPetter/PitterPatter-Manifest    # ArgoCD가 바라보는 Organization/Repo
           token: ${{ secrets.GH_PAT }}       # Personal Access Token 필요
           path: manifests
+
+      # Manifest Repository에서 Manifest 파일 내의 이미지 태그를 업데이트
+      - name: Update image tag in Deployment yaml
+        run: |
+          cd manifests/charts/loventure
+          # yq를 사용해서 gateway-service의 deployment.image.tag만 업데이트
+          yq eval '.gateway-service.deployment.image.tag = "${{ steps.vars.outputs.sha_short }}"' -i values.yaml
+          git config user.name "llokr1"
+          git config user.email "ghdwlsrl100@gachon.ac.kr"
+          # 변경사항 확인 후 커밋
+          if git diff --quiet values.yaml; then
+            echo "No changes detected in values.yaml"
+          else
+            echo "Changes detected:"
+            git diff values.yaml
+            git add values.yaml
+            git commit -m "Update gateway-service image to ${{ steps.vars.outputs.sha_short }}"
+            git push origin main
+          fi
