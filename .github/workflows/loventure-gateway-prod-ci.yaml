@@ -59,8 +59,8 @@ jobs:
           cd manifests/charts/loventure
           # yq를 사용해서 gateway-service의 deployment.image.tag만 업데이트
           yq eval '.gateway-service.deployment.image.tag = "${{ steps.vars.outputs.sha_short }}"' -i values.yaml
-          git config user.name "llokr1"
-          git config user.email "ghdwlsrl100@gachon.ac.kr"
+          git config user.name "github-actions[bot]""
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           # 변경사항 확인 후 커밋
           if git diff --quiet values.yaml; then
             echo "No changes detected in values.yaml"
