@@ -10,7 +10,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
-//@Component
+@Component
 public class JwtUtil {
 	private final Key key;
 
@@ -37,15 +37,5 @@ public class JwtUtil {
 			.build()
 			.parseClaimsJws(token)
 			.getBody(); // 토큰 안에 있는 Claims(payload 부분) 꺼냄
-	}
-
-	public String extractUserId(String token) { // user_id 추출
-		Claims claims = extractClaims(token);
-		return claims.get("user_id", String.class);
-	}
-
-	public String extractCoupleId(String token) { // couple_id 추출
-		Claims claims = extractClaims(token);
-		return claims.get("couple_id", String.class);
 	}
 }

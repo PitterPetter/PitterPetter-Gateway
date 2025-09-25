@@ -18,7 +18,7 @@ import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
-//@Component
+@Component
 @RequiredArgsConstructor
 public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter 메서드
 	private static final Logger log = LoggerFactory.getLogger(JwtAuthorizationFilter.class); // 요청 경로, 인증 여부, 에러 등 로깅
@@ -48,27 +48,14 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		if (!jwtUtil.isValidToken(token)) { // 만료 여부, 서명 위조 여부 검증
 			return onError(exchange, "JWT 토큰이 유효하지 않습니다.", HttpStatus.UNAUTHORIZED, "INVALID_JWT", "토큰이 만료되었거나 변조되었습니다.");
 		}
-		// JWT에서 user_id와 couple_id 추출
-		String userId = jwtUtil.extractUserId(token);
-		String coupleId = jwtUtil.extractCoupleId(token);
-		
-		log.info("Authenticated user: user_id={}, couple_id={}", userId, coupleId);
+		Claims claims = jwtUtil.extractClaims(token); // 토큰 Payload에 담긴 Claims 꺼내기
+		log.info("Authenticated user: user_id={}, couple_id={}",
+			claims.getSubject(),
+			claims.get("user_id"),
+			claims.get("couple_id")
+		);
 
-		// 추출한 정보를 헤더에 추가하여 각 서비스에 전달
-		ServerWebExchange modifiedExchange = exchange.mutate()
-			.request(builder -> {
-				if (userId != null) {
-					builder.header("X-User-Id", userId);
-					log.debug("Added X-User-Id header: {}", userId);
-				}
-				if (coupleId != null) {
-					builder.header("X-Couple-Id", coupleId);
-					log.debug("Added X-Couple-Id header: {}", coupleId);
-				}
-			})
-			.build();
-
-		return chain.filter(modifiedExchange);
+		return chain.filter(exchange);
 	}
 
 	// JWT 인증 없이 접근 가능한 엔드포인트 목록
