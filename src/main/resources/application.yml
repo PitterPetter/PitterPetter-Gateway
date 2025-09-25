@@ -41,6 +41,8 @@ management:
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
+    gateway:
+      enabled: true
     health:
       show-details: always
       show-components: always
