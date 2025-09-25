@@ -1,13 +1,11 @@
-package PitterPatter.loventure;
+package PitterPetter.loventure.gateway;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class LoventureApplication {
-
+public class GatewayApplication {
 	public static void main(String[] args) {
-		SpringApplication.run(LoventureApplication.class, args);
+		SpringApplication.run(GatewayApplication.class, args);
 	}
-
 }
