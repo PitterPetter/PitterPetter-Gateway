@@ -8,7 +8,7 @@ COPY gradlew ./
 COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
 COPY gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
 
-COPY settings.gradle* build.gradle* build.gradle.kts* ./
+COPY settings.gradle* build.gradle* ./
 RUN chmod +x gradlew
 # 플러그인/의존성만 미리 내려받아 캐시 (소스 없을 때 실패해도 캐시엔 도움)
 RUN ./gradlew --no-daemon dependencies || true

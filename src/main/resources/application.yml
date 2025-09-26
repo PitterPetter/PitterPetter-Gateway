@@ -39,7 +39,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: gateway, health,info,metrics,prometheus
   endpoint:
     gateway:
       enabled: true
