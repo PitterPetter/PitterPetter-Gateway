@@ -1,4 +1,4 @@
-name: CI for Gateway Service
+name: CI for Gateway
 
 on:
   push:
@@ -31,8 +31,8 @@ jobs:
           context: .
           push: true
           tags: |
-            pitterpetter/gateway-service:${{ steps.vars.outputs.sha_short }}
-            pitterpetter/gateway-service:latest
+            pitterpetter/gateway:${{ steps.vars.outputs.sha_short }}
+            pitterpetter/gateway:latest
       # IMAGE_NAME : prefix로 Docker Hub의 Repository 이름이 들어가야 함
 
       # ArgoCD가 참조하는 Repository로 checkout
@@ -47,8 +47,8 @@ jobs:
       - name: Update image tag in Deployment yaml
         run: |
           cd manifests/charts/loventure
-          # yq를 사용해서 gateway-service의 deployment.image.tag만 업데이트
-          yq eval '.gateway-service.deployment.image.tag = "${{ steps.vars.outputs.sha_short }}"' -i values.yaml
+          # yq를 사용해서 gateway의 deployment.image.tag만 업데이트
+          yq eval '.gateway.deployment.image.tag = "${{ steps.vars.outputs.sha_short }}"' -i values.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # 변경사항 확인 후 커밋
@@ -58,6 +58,6 @@ jobs:
             echo "Changes detected:"
             git diff values.yaml
             git add values.yaml
-            git commit -m "Update gateway-service image to ${{ steps.vars.outputs.sha_short }}"
+            git commit -m "Update gateway image to ${{ steps.vars.outputs.sha_short }}"
             git push origin main
           fi
