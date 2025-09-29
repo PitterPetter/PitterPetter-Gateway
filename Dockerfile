@@ -1,4 +1,4 @@
-# ---- Build stage: Gradle + JDK 21 (cache-friendly) ----
+# ---- Build stage: Gradle + JDK 17 (cache-friendly) ----
 FROM eclipse-temurin:17-jdk-jammy AS build
 WORKDIR /workspace
 
@@ -19,7 +19,7 @@ COPY src ./src
 # 테스트는 컨테이너 빌드에서 생략(원하면 제거)
 RUN ./gradlew --no-daemon bootJar -x test
 
-# ---- Runtime stage: JRE 21 slim ----
+# ---- Runtime stage: JRE 17 slim ----
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
 # 비루트 실행 권장
