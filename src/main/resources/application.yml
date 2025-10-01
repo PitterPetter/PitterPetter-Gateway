@@ -3,7 +3,7 @@ spring:
     import: "optional:configserver:"
   cloud:
     config:
-      uri: http://config-serve.config-server.svc.cluster.local:80
+      uri: http://config-server.config-server.svc.cluster.local:80
       name: gateway
       label: dev
       fail-fast: true
