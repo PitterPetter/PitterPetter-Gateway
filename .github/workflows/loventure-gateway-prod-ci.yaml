@@ -1,4 +1,4 @@
-name: CI for Gateway Service
+name: CI for Gateway
 
 on:
   push:
@@ -11,16 +11,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      # Gradle 빌드
-      - name: Build with Gradle
-        run: ./gradlew clean build -x test
 
       # Docker 로그인
       - name: Log in to Docker Hub
@@ -41,9 +31,10 @@ jobs:
           context: .
           push: true
           tags: |
-            pitterpetter/gateway-service:${{ steps.vars.outputs.sha_short }}
-            pitterpetter/gateway-service:latest
-      # IMAGE_NAME : prefix로 Docker Hub의 Repository 이름이 들어가야 함
+            pitterpetter/gateway:${{ steps.vars.outputs.sha_short }}
+            pitterpetter/gateway:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # ArgoCD가 참조하는 Repository로 checkout
       - name: Update Manifest Repo
@@ -57,8 +48,8 @@ jobs:
       - name: Update image tag in Deployment yaml
         run: |
           cd manifests/charts/loventure
-          # yq를 사용해서 gateway-service의 deployment.image.tag만 업데이트
-          yq eval '.gateway-service.deployment.image.tag = "${{ steps.vars.outputs.sha_short }}"' -i values.yaml
+          # yq를 사용해서 gateway의 deployment.image.tag만 업데이트
+          yq eval '.gateway.deployment.image.tag = "${{ steps.vars.outputs.sha_short }}"' -i values.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # 변경사항 확인 후 커밋
@@ -68,6 +59,6 @@ jobs:
             echo "Changes detected:"
             git diff values.yaml
             git add values.yaml
-            git commit -m "Update gateway-service image to ${{ steps.vars.outputs.sha_short }}"
+            git commit -m "Update gateway image to ${{ steps.vars.outputs.sha_short }}"
             git push origin main
           fi

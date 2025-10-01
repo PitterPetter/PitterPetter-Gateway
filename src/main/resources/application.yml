@@ -1,45 +1,13 @@
-server:
-  port: 8080   # 게이트웨이가 열릴 포트
-  forward-headers-strategy: framework
-
 spring:
-  application:
-    name: gateway
-  cloud:
-    gateway:
-      routes:
-        - id: ai
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/ai/**
-        - id: user
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/users/**
-        - id: content
-          uri: http://localhost:8083
-          predicates:
-            - Path=/api/contents/**
-        - id: course
-          uri: http://localhost:8084
-          predicates:
-            - Path=/api/courses/**
   config:
     import: "optional:configserver:"
-
-jwt:
-  secret: ${JWT_SECRET}
-
-logging:
-  level:
-    org.springframework.cloud.gateway: DEBUG   # 게이트웨이 동작 로그를 DEBUG 레벨로 출력
-    reactor.netty.http.server: DEBUG   # Netty HTTP 서버 로그도 DEBUG 출력
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"   # 또는 gateway,health,info 등 필요한 것만
-  endpoint:
-    gateway:
-      enabled: true    # /actuator/gateway 엔드포인트 활성화
+  cloud:
+    config:
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      name: gateway
+      label: dev
+      fail-fast: true
+  application:
+    name: gateway
+  profiles:
+    active: prod
