@@ -1,5 +1,7 @@
 package PitterPetter.loventure.gateway.filter;
 
+import java.util.List;
+
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.Ordered;
@@ -11,15 +13,21 @@ import reactor.core.publisher.Mono;
 public class CorsErrorFilter implements GatewayFilter, Ordered {
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-		String origin = exchange.getRequest().getHeaders().getOrigin(); // 요청 헤더: http://localhost:3000
-		if (origin != null && isAllowedOrigin(origin)) { // 허용되지 않은 Origin일 때 onCorsError() 호출
+		String origin = exchange.getRequest().getHeaders().getOrigin(); // 요청 헤더: http://localhost:5173
+		if (origin != null && !isAllowedOrigin(origin)) { // 허용되지 않은 Origin일 때 onCorsError() 호출
 			return onCorsError(exchange, origin);
 		}
 		return chain.filter(exchange); // 허용된 Origin이면 chain.filter(exchange) 호출 -> 다음 필터로
 	}
 
 	public boolean isAllowedOrigin(String origin) {
-		return origin.equals("http://localhost:3000"); // 허용할 Origin
+		// 허용할 Origin들을 리스트로 관리
+		return List.of(
+			"http://localhost:5173",
+			"https://api.loventure.us",
+			"https://loventure.us",
+			"https://argo.loventure.us"
+		).contains(origin);
 	}
 
 	public Mono<Void> onCorsError(ServerWebExchange exchange, String origin) {
