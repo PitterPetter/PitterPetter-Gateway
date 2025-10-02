@@ -17,7 +17,7 @@ public class CorsGlobalConfig {
 
 		// 허용할 HTTP 메서드
 		config.setAllowedOrigins(List.of(
-			"http://localhost:3000/api", "http://loventure.us" //, 쿠버 서버 추가하기
+			"http://localhost:5173", "https://api.loventure.us", "https://loventure.us", "https://argo.loventure.us"
 		));
 		config.setAllowedMethods(List.of("*")); // 허용할 메쏘드
 		config.setAllowedHeaders(List.of("*")); // 허용할 요청 헤더
