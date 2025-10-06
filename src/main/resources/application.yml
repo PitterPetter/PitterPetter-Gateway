@@ -7,8 +7,5 @@ spring:
       name: gateway
       label: main
       fail-fast: true
-
-  application:
-    name: gateway
   profiles:
     active: prod
