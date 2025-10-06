@@ -7,6 +7,8 @@ spring:
       name: gateway
       label: prod
       fail-fast: true
+      search-paths:
+        - '{application}'
   application:
     name: gateway
   profiles:
