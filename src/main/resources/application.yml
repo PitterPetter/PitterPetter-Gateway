@@ -5,7 +5,7 @@ spring:
     config:
       uri: http://config-server.config-server.svc.cluster.local:80
       name: gateway
-      label: prod
+      label: main
       fail-fast: true
       search-paths:
         - '{application}'
