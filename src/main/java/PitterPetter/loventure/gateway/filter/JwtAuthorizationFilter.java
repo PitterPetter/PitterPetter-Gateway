@@ -61,7 +61,8 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 	// JWT 인증 없이 접근 가능한 엔드포인트 목록
 	private static final List<String> PUBLIC_PATHS = List.of(
 		// 회원가입, 로그인
-		"/api/oauth2/authorization",
+		"/oauth2",
+		"/api/oauth2",
 		// "/api/auth/login", // 로그인
 		"/api/auth/signup", // 회원가입
 		"/api/auth/reissue", // 토큰 재발급
@@ -77,12 +78,17 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/api/auth/swagger-ui",
 		"/api/auth/swagger-ui/**",
 		"/api/auth/swagger-ui.html",
+		"/api/auth/v3/api-docs",
 		"/api/diaries/swagger-ui",
 		"/api/diaries/swagger-ui/**",
 		"/api/diaries/swagger-ui.html",
+		"/api/diaries/v3/api-docs",
 		"/api/courses/swagger-ui",
 		"/api/courses/swagger-ui/**",
 		"/api/courses/swagger-ui.html",
+		"/api/courses/v3/api-docs",
+		"/api/comments/swagger-ui",
+		"/api/comments/v3/api-docs",
 		"/swagger-ui/",
 		"/swagger-ui/**",
 		"/swagger-ui.html",
@@ -97,6 +103,9 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/argocd",
 		"/argocd/**",
 		"/actuator/health",
+		"/api/auth/health",
+		"/api/courses/health",
+		"/api/diaries/health",
 
 		"/api/ai"
 	);
