@@ -61,22 +61,23 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 	// JWT 인증 없이 접근 가능한 엔드포인트 목록
 	private static final List<String> PUBLIC_PATHS = List.of(
 		// 회원가입, 로그인
-		"api/users/auth/login", // 로그인
-		"api/users/auth/signup", // 회원가입
-		"api/users/auth/reissue", // 토큰 재발급
-		"api/users/master/login", // 관리자 로그인
+		"/api/oauth2/authorization",
+		// "/api/auth/login", // 로그인
+		"/api/auth/signup", // 회원가입
+		"/api/auth/reissue", // 토큰 재발급
+		"/api/master/login", // 관리자 로그인
 
 		// 인증 보조 API
-		"api/users/companies", // 회사 조회
-		"api/users/departments", // 부서 조회
-		"api/users/master/verify-code/sent", // 인증 코드 발송
-		"api/users/master/verity-code/confirm", // 인증 코드 확인
+		"/api/auth/companies", // 회사 조회
+		"/api/auth/departments", // 부서 조회
+		"/api/auth/master/verify-code/sent", // 인증 코드 발송
+		"/api/auth/master/verity-code/confirm", // 인증 코드 확인
 
 		// 문서/개발 편의용
 		"/swagger-ui/",
 		"/swagger-ui/**",
 		"/swagger-ui.html",
-		"swagger-resources/**",
+		"/swagger-resources/**",
 		"/v3/api-docs",
 		"/v3/api-docs/**",
 		"/v3/api-docs.yaml",
@@ -88,7 +89,7 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/argocd/**",
 		"/actuator/health",
 
-		"api/ai"
+		"/api/ai"
 	);
 
 	// PUBLIC_PATHS에 포함되는지 확인
