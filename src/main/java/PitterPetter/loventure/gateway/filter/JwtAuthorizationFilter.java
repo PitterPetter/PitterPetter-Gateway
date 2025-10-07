@@ -61,9 +61,10 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 	// JWT 인증 없이 접근 가능한 엔드포인트 목록
 	private static final List<String> PUBLIC_PATHS = List.of(
 		// 회원가입, 로그인
+		"/oauth2",
 		"/oauth2/**",
+		"/api/oauth2",
 		"/api/oauth2/**",
-		// "/api/auth/login", // 로그인
 		"/api/auth/signup", // 회원가입
 		"/api/auth/reissue", // 토큰 재발급
 		"/api/master/login", // 관리자 로그인
@@ -96,6 +97,7 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/v3/api-docs",
 		"/v3/api-docs/**",
 		"/v3/api-docs.yaml",
+		"/webjars",
 		"/webjars/**",
 		"/docs",
 
