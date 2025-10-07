@@ -67,6 +67,8 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/api/auth/signup", // 회원가입
 		"/api/auth/reissue", // 토큰 재발급
 		"/api/master/login", // 관리자 로그인
+		"/api/login/**",
+ 		"/login/**",
 
 		// 인증 보조 API
 		"/api/auth/companies", // 회사 조회
