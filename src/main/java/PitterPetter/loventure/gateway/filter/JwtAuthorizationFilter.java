@@ -61,13 +61,13 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 	// JWT 인증 없이 접근 가능한 엔드포인트 목록
 	private static final List<String> PUBLIC_PATHS = List.of(
 		// 회원가입, 로그인
+		"/oauth2",
 		"/oauth2/**",
+		"/api/oauth2",
 		"/api/oauth2/**",
 		"/api/auth/signup", // 회원가입
 		"/api/auth/reissue", // 토큰 재발급
 		"/api/master/login", // 관리자 로그인
-		"/api/login/**",
- 		"/login/**",
 
 		// 인증 보조 API
 		"/api/auth/companies", // 회사 조회
@@ -114,7 +114,26 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 
 	// PUBLIC_PATHS에 포함되는지 확인
 	private boolean isPublic(String path) {
-		return PUBLIC_PATHS.stream().anyMatch(path::startsWith);
+		log.info("Checking if path '{}' is public", path);
+		
+		boolean isPublic = PUBLIC_PATHS.stream().anyMatch(publicPath -> {
+			log.info("Checking against public path: '{}'", publicPath);
+			
+			// /** 패턴 처리
+			if (publicPath.endsWith("/**")) {
+				String basePath = publicPath.substring(0, publicPath.length() - 3);
+				boolean matches = path.startsWith(basePath);
+				log.info("Pattern '{}' matches '{}': {}", publicPath, path, matches);
+				return matches;
+			}
+			// 일반 경로는 startsWith로 매칭
+			boolean matches = path.startsWith(publicPath);
+			log.info("Path '{}' starts with '{}': {}", path, publicPath, matches);
+			return matches;
+		});
+		
+		log.info("Path '{}' is public: {}", path, isPublic);
+		return isPublic;
 	}
 
 	// 에러 응답 생성
