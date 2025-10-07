@@ -74,6 +74,15 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/api/auth/master/verity-code/confirm", // 인증 코드 확인
 
 		// 문서/개발 편의용
+		"/api/auth/swagger-ui",
+		"/api/auth/swagger-ui/**",
+		"/api/auth/swagger-ui.html",
+		"/api/diaries/swagger-ui",
+		"/api/diaries/swagger-ui/**",
+		"/api/diaries/swagger-ui.html",
+		"/api/courses/swagger-ui",
+		"/api/courses/swagger-ui/**",
+		"/api/courses/swagger-ui.html",
 		"/swagger-ui/",
 		"/swagger-ui/**",
 		"/swagger-ui.html",
