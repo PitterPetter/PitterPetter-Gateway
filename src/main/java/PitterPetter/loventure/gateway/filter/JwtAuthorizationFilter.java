@@ -65,7 +65,7 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/oauth2/**",
 		"/api/oauth2",
 		"/api/oauth2/**",
-        "/login/oauth2/code/**",
+        "/login/",
         "/login/**",
 		"/api/auth/signup", // 회원가입
 		"/api/auth/reissue", // 토큰 재발급
