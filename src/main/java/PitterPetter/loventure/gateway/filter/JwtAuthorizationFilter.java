@@ -27,10 +27,16 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 		String path = exchange.getRequest().getPath().toString(); // 요청 URI 가져옴
+		String method = exchange.getRequest().getMethod().toString();
+		String origin = exchange.getRequest().getHeaders().getFirst("Origin");
+		String referer = exchange.getRequest().getHeaders().getFirst("Referer");
 
-		log.info("Incoming request path: {}", path);
+		log.info("=== JWT Filter Debug ===");
+		log.info("Incoming request - Method: {}, Path: {}", method, path);
+		log.info("Origin: {}, Referer: {}", origin, referer);
 
 		if (isPublic(path)) { // isPublic(path)에서 정의한 리스트에 해당하면 인증 검사 건너뜀
+			log.info("Path '{}' is PUBLIC - proceeding without authentication", path);
 			return chain.filter(exchange);
 		}
 
