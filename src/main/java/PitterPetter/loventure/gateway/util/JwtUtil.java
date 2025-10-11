@@ -14,7 +14,7 @@ import io.jsonwebtoken.security.Keys;
 public class JwtUtil {
 	private final Key key;
 
-	public JwtUtil(@Value("${spring.jwt.secret}") String secret) { // JWT 검증에 쓸 Key를 클래스 내부에 준비
+	public JwtUtil(@Value("${jwt.secret}") String secret) { // JWT 검증에 쓸 Key를 클래스 내부에 준비
 		byte[] decodedKey = java.util.Base64.getDecoder().decode(secret); // Base64 인코딩된 값 -> 바이트 배열로 디코딩
 		this.key = Keys.hmacShaKeyFor(decodedKey); // HMAC-SHA 알고리즘용 Key 객체 생성
 	}
