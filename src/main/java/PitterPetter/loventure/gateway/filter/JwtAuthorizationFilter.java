@@ -65,7 +65,7 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/oauth2/**",
 		"/api/oauth2",
 		"/api/oauth2/**",
-        "/login/",
+        "/login",
         "/login/**",
 		"/api/auth/signup", // 회원가입
 		"/api/auth/reissue", // 토큰 재발급
@@ -111,7 +111,7 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/api/courses/health",
 		"/api/diaries/health",
 
-		"/api/ai"
+		"/api/recommends"
 	);
 
 	// PUBLIC_PATHS에 포함되는지 확인
