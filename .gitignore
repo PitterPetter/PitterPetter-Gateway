@@ -46,3 +46,4 @@ src/main/resources/application-secret.yml
 # Local notes
 NOTE.md
 TASK.md
+result.md
