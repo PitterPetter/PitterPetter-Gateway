@@ -98,11 +98,7 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
                                               "보유한 티켓이 없어서 지역을 해제할 수 없습니다.");
                             }
                             
-                            // 티켓 차감 (tickat - 1)
-                            int newTickat = ticketResponse.getTickat() - 1;
-                            ticketResponse.setTickat(newTickat);
-                            
-                            log.info("Ticket deducted for couple_id: {}, new tickat: {}", coupleId, newTickat);
+                            log.info("Ticket validation passed for couple_id: {}, tickat: {}", coupleId, ticketResponse.getTickat());
                             
                             // Territory 서비스로 요청 전달 (JWT 없이, 바디 수정)
                             String newBody = String.format("{\"coupleId\": \"%s\", \"regionId\": \"%s\"}", 
@@ -125,7 +121,6 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
                             // JWT 토큰 제거, 필요한 헤더만 유지
                             modifiedExchange.getRequest().mutate()
                                 .header(HttpHeaders.AUTHORIZATION, (String) null)  // JWT 토큰 제거
-                                .header("X-Correlation-Id", correlationId)  // 상관관계 ID만 유지
                                 .build();
                             
                             return chain.filter(modifiedExchange);
