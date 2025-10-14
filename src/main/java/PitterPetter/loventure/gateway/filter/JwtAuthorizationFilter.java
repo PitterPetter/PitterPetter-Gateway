@@ -101,10 +101,22 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/api/auth/favicon-16x16.png",
 		"/api/auth/v3/api-docs",
 		"/api/auth/v3/api-docs/**",
+
+		// Content 서비스
 		"/api/diaries/swagger-ui",
 		"/api/diaries/swagger-ui/**",
 		"/api/diaries/swagger-ui.html",
+		"/api/diaries/swagger-ui.css",
+		"/api/diaries/swagger-ui-bundle.js",
+		"/api/diaries/swagger-ui-standalone-preset.js",
+		"/api/diaries/swagger-initializer.js",
+		"/api/diaries/index.css",
+		"/api/diaries/favicon-32x32.png",
+		"/api/diaries/favicon-16x16.png",
 		"/api/diaries/v3/api-docs",
+		"/api/diaries/v3/api-docs/**",
+
+
 		"/api/courses/swagger-ui",
 		"/api/courses/swagger-ui/**",
 		"/api/courses/swagger-ui.html",
