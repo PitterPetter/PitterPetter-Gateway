@@ -15,6 +15,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 import PitterPetter.loventure.gateway.client.CouplesApiClient;
 import PitterPetter.loventure.gateway.dto.TicketResponse;
+import PitterPetter.loventure.gateway.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
@@ -24,33 +25,33 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
     
     private static final Logger log = LoggerFactory.getLogger(RegionsTicketFilter.class);
     private final CouplesApiClient couplesApiClient;
+    private final JwtUtil jwtUtil;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getPath().toString();
         
-        // /api/regions 요청인지 확인
-        if (!path.startsWith("/api/regions/unlock")) {
+        // /api/regions/unlock 요청인지 확인
+        if (!path.equals("/api/regions/unlock")) {
             return chain.filter(exchange);
         }
 
         log.info("Processing regions request: {}", path);
 
-        // // JWT 토큰에서 coupleId 추출
-        // String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        // if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-        //     return onError(exchange, "인증 헤더가 없거나 형식이 올바르지 않습니다.", 
-        //                   HttpStatus.UNAUTHORIZED, "AUTH_HEADER_INVALID", 
-        //                   "Authorization 헤더가 Bearer 형식이 아닙니다.");
-        // }
+        // JWT 토큰에서 coupleId 추출
+        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return onError(exchange, "인증 헤더가 없거나 형식이 올바르지 않습니다.", 
+                          HttpStatus.UNAUTHORIZED, "AUTH_HEADER_INVALID", 
+                          "Authorization 헤더가 Bearer 형식이 아닙니다.");
+        }
 
-        // String token = authHeader.replace("Bearer ", "").trim();
-        // String correlationId = exchange.getRequest().getHeaders().getFirst("X-Correlation-Id");
-        // if (correlationId == null) {
-        //     correlationId = UUID.randomUUID().toString();
-        // }
+        String token = authHeader.replace("Bearer ", "").trim();
+        final String correlationId = exchange.getRequest().getHeaders().getFirst("X-Correlation-Id") != null 
+            ? exchange.getRequest().getHeaders().getFirst("X-Correlation-Id")
+            : UUID.randomUUID().toString();
 
-        // log.info("Processing request, correlation_id: {}", correlationId);
+        log.info("Processing request, correlation_id: {}", correlationId);
 
         // Couples API에서 티켓 정보 조회
         return couplesApiClient.getTicketInfo(token, correlationId)
