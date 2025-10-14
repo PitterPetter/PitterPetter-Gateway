@@ -42,5 +42,6 @@ src/main/resources/application-secret.yml
 
 .DS_Store
 
-# Local study notes
+# Local notes
 NOTE.md
+TASK.md
