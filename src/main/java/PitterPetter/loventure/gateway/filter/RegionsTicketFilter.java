@@ -15,8 +15,6 @@ import org.springframework.web.server.ServerWebExchange;
 
 import PitterPetter.loventure.gateway.client.CouplesApiClient;
 import PitterPetter.loventure.gateway.dto.TicketResponse;
-import PitterPetter.loventure.gateway.util.JwtUtil;
-import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
@@ -26,7 +24,6 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
     
     private static final Logger log = LoggerFactory.getLogger(RegionsTicketFilter.class);
     private final CouplesApiClient couplesApiClient;
-    private final JwtUtil jwtUtil;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -48,27 +45,17 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
         }
 
         String token = authHeader.replace("Bearer ", "").trim();
-        
-        // JWT에서 coupleId 추출
-        Claims claims = jwtUtil.extractClaims(token);
-        Object coupleIdObj = claims.get("couple_id");
-        if (coupleIdObj == null) {
-            return onError(exchange, "JWT 토큰에 couple_id가 없습니다.", 
-                          HttpStatus.UNAUTHORIZED, "MISSING_COUPLE_ID", 
-                          "JWT 클레임에 couple_id가 포함되지 않았습니다.");
-        }
-
-        String coupleId = coupleIdObj.toString();
         String correlationId = exchange.getRequest().getHeaders().getFirst("X-Correlation-Id");
         if (correlationId == null) {
             correlationId = UUID.randomUUID().toString();
         }
 
-        log.info("Processing request for couple_id: {}, correlation_id: {}", coupleId, correlationId);
+        log.info("Processing request, correlation_id: {}", correlationId);
 
         // Couples API에서 티켓 정보 조회
         return couplesApiClient.getTicketInfo(token, correlationId)
             .flatMap(ticketResponse -> {
+                String coupleId = ticketResponse.getCoupleId().toString();
                 log.info("Ticket info retrieved for couple_id: {}, tickat: {}", 
                         coupleId, ticketResponse.getTickat());
                 
@@ -91,8 +78,8 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
                 return chain.filter(exchange);
             })
             .onErrorResume(error -> {
-                log.error("Failed to retrieve ticket info for couple_id: {}, error: {}", 
-                         coupleId, error.getMessage(), error);
+                log.error("Failed to retrieve ticket info, error: {}", 
+                         error.getMessage(), error);
                 
                 return onError(exchange, "티켓 정보를 가져오는데 실패했습니다.", 
                               HttpStatus.SERVICE_UNAVAILABLE, "TICKET_FETCH_FAILED", 
