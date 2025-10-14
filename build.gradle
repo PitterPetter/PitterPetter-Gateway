@@ -49,6 +49,8 @@ dependencies {
 	// 테스트 의존성
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
+	testImplementation 'io.restassured:rest-assured:5.4.0'
+	testImplementation 'io.restassured:spring-web-test-client:5.4.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	// JWT 인증 관련
@@ -56,8 +58,6 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
-	// API 문서화 (Swagger UI for WebFlux)
-	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.8.9'
 
 	annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
 }
