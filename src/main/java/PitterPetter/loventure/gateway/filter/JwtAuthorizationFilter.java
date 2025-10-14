@@ -27,8 +27,10 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 		String path = exchange.getRequest().getPath().toString(); // 요청 URI 가져옴
+		String method = exchange.getRequest().getMethod().toString();
 
-		log.info("Incoming request path: {}", path);
+		// 1. 요청 로그
+		log.info("{} : {}", method, path);
 
 		if (isPublic(path)) { // isPublic(path)에서 정의한 리스트에 해당하면 인증 검사 건너뜀
 			return chain.filter(exchange);
@@ -49,13 +51,22 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 			return onError(exchange, "JWT 토큰이 유효하지 않습니다.", HttpStatus.UNAUTHORIZED, "INVALID_JWT", "토큰이 만료되었거나 변조되었습니다.");
 		}
 		Claims claims = jwtUtil.extractClaims(token); // 토큰 Payload에 담긴 Claims 꺼내기
-		log.info("Authenticated user: user_id={}, couple_id={}",
-			claims.getSubject(),
-			claims.get("user_id"),
-			claims.get("couple_id")
-		);
-
-		return chain.filter(exchange);
+		
+		// 2. 토큰 추출 결과 로그
+		log.info("FilterChain에서 토큰 추출 결과 - userId : {}", claims.get("user_id"));
+		
+		// 4. 인가 성공 시 라우팅 정보 로그 - 실제 라우팅 후 로그
+		return chain.filter(exchange).doFinally(signalType -> {
+			// 라우팅이 완료된 후 실제 타겟 URI 로그 출력
+			java.net.URI targetUri = exchange.getAttribute(org.springframework.cloud.gateway.support.ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
+			if (targetUri != null) {
+				log.info("인가 성공 - 실제 라우팅: {}://{}:{}{}", 
+					targetUri.getScheme(), 
+					targetUri.getHost(), 
+					targetUri.getPort(), 
+					targetUri.getPath());
+			}
+		});
 	}
 
 	// JWT 인증 없이 접근 가능한 엔드포인트 목록
@@ -117,31 +128,25 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 
 	// PUBLIC_PATHS에 포함되는지 확인
 	private boolean isPublic(String path) {
-		log.info("Checking if path '{}' is public", path);
-		
 		boolean isPublic = PUBLIC_PATHS.stream().anyMatch(publicPath -> {
-			log.info("Checking against public path: '{}'", publicPath);
-			
 			// /** 패턴 처리
 			if (publicPath.endsWith("/**")) {
 				String basePath = publicPath.substring(0, publicPath.length() - 3);
 				boolean matches = path.startsWith(basePath);
-				log.info("Pattern '{}' matches '{}': {}", publicPath, path, matches);
 				return matches;
 			}
 			// 일반 경로는 startsWith로 매칭
 			boolean matches = path.startsWith(publicPath);
-			log.info("Path '{}' starts with '{}': {}", path, publicPath, matches);
 			return matches;
 		});
 		
-		log.info("Path '{}' is public: {}", path, isPublic);
 		return isPublic;
 	}
 
 	// 에러 응답 생성
 	private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus status, String errorCode, String errorDetail) {
-		log.error("JWT Filter Error: {} ({}) - {}", message, errorCode, errorDetail);
+		// 3. 인가 실패 로그
+		log.error("인가 실패: {} - {}", errorCode, errorDetail);
 
 		var response = exchange.getResponse();
 		response.setStatusCode(status);
