@@ -30,27 +30,27 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
         String path = exchange.getRequest().getPath().toString();
         
         // /api/regions 요청인지 확인
-        if (!path.startsWith("/api/regions")) {
+        if (!path.startsWith("/api/regions/unlock")) {
             return chain.filter(exchange);
         }
 
         log.info("Processing regions request: {}", path);
 
-        // JWT 토큰에서 coupleId 추출
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return onError(exchange, "인증 헤더가 없거나 형식이 올바르지 않습니다.", 
-                          HttpStatus.UNAUTHORIZED, "AUTH_HEADER_INVALID", 
-                          "Authorization 헤더가 Bearer 형식이 아닙니다.");
-        }
+        // // JWT 토큰에서 coupleId 추출
+        // String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        // if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        //     return onError(exchange, "인증 헤더가 없거나 형식이 올바르지 않습니다.", 
+        //                   HttpStatus.UNAUTHORIZED, "AUTH_HEADER_INVALID", 
+        //                   "Authorization 헤더가 Bearer 형식이 아닙니다.");
+        // }
 
-        String token = authHeader.replace("Bearer ", "").trim();
-        String correlationId = exchange.getRequest().getHeaders().getFirst("X-Correlation-Id");
-        if (correlationId == null) {
-            correlationId = UUID.randomUUID().toString();
-        }
+        // String token = authHeader.replace("Bearer ", "").trim();
+        // String correlationId = exchange.getRequest().getHeaders().getFirst("X-Correlation-Id");
+        // if (correlationId == null) {
+        //     correlationId = UUID.randomUUID().toString();
+        // }
 
-        log.info("Processing request, correlation_id: {}", correlationId);
+        // log.info("Processing request, correlation_id: {}", correlationId);
 
         // Couples API에서 티켓 정보 조회
         return couplesApiClient.getTicketInfo(token, correlationId)
