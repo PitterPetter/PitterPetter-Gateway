@@ -22,3 +22,26 @@ spring:
         max-idle: 8
         min-idle: 0
         max-wait: -1ms
+
+# 로깅 설정
+logging:
+  level:
+    # Redis 관련 로깅
+    PitterPetter.loventure.gateway.config.RedisConfig: INFO
+    PitterPetter.loventure.gateway.config.RedisConnectionLogger: INFO
+    PitterPetter.loventure.gateway.controller.RedisHealthController: INFO
+    PitterPetter.loventure.gateway.service.RedisService: INFO
+    
+    # Spring Redis 로깅
+    org.springframework.data.redis: INFO
+    org.springframework.data.redis.connection: DEBUG
+    org.springframework.data.redis.core: DEBUG
+    
+    # Lettuce 연결 풀 로깅
+    io.lettuce.core: INFO
+    
+    # Gateway 전체 로깅
+    PitterPetter.loventure.gateway: INFO
+    
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

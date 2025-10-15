@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -33,17 +34,17 @@ public class CouplesApiClient {
             .header("Accept", "application/json")
             .header("X-Correlation-Id", correlationId)
             .retrieve()
-            .onStatus(HttpStatus::is4xxClientError, response -> {
+            .onStatus(HttpStatusCode::is4xxClientError, response -> {
                 log.warn("Couples API client error: {}", response.statusCode());
                 return response.bodyToMono(String.class)
                     .flatMap(body -> Mono.error(new CouplesApiException(
-                        "Client error: " + body, response.statusCode())));
+                        "Client error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
             })
-            .onStatus(HttpStatus::is5xxServerError, response -> {
+            .onStatus(HttpStatusCode::is5xxServerError, response -> {
                 log.error("Couples API server error: {}", response.statusCode());
                 return response.bodyToMono(String.class)
                     .flatMap(body -> Mono.error(new CouplesApiException(
-                        "Server error: " + body, response.statusCode())));
+                        "Server error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
             })
             .bodyToMono(TicketResponse.class)
             .timeout(Duration.ofSeconds(5))
@@ -51,7 +52,7 @@ public class CouplesApiClient {
                 .filter(throwable -> throwable instanceof WebClientResponseException))
             .doOnSuccess(response -> {
                 log.info("Successfully retrieved ticket info, correlation_id: {}, tickat: {}", 
-                        correlationId, response.getTickat());
+                        correlationId, response.getTicket());
             })
             .doOnError(error -> {
                 log.error("Failed to retrieve ticket info, correlation_id: {}, error: {}", 

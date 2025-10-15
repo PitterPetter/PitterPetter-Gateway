@@ -95,6 +95,7 @@ public class RedisService {
      */
     public Mono<Boolean> deleteKeyReactive(String key) {
         return reactiveRedisTemplate.delete(key)
+                .map(result -> result > 0)
                 .doOnSuccess(deleted -> log.info("Redis 삭제 (Reactive) - Key: {}, 결과: {}", key, deleted))
                 .doOnError(error -> log.error("Redis 삭제 실패 (Reactive) - Key: {}, Error: {}", key, error.getMessage()));
     }

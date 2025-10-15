@@ -9,6 +9,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Properties;
 
 @Slf4j
 @Component
@@ -52,18 +53,13 @@ public class RedisConnectionLogger implements ApplicationListener<ApplicationRea
     private void logRedisInfo() {
         try {
             // Redis 서버 정보 조회 시도
-            String info = (String) redisTemplate.getConnectionFactory()
+            Properties info = redisTemplate.getConnectionFactory()
                     .getConnection()
+                    .serverCommands()
                     .info("server");
             
             if (info != null && !info.isEmpty()) {
-                String[] lines = info.split("\r\n");
-                for (String line : lines) {
-                    if (line.startsWith("redis_version:")) {
-                        log.info("📊 Redis 서버 정보 - 버전: {}", line.split(":")[1]);
-                        break;
-                    }
-                }
+                log.info("📊 Redis 서버 정보 - 버전: {}", info.getProperty("redis_version"));
             }
         } catch (Exception e) {
             log.warn("⚠️ Redis 서버 정보 조회 실패: {}", e.getMessage());
