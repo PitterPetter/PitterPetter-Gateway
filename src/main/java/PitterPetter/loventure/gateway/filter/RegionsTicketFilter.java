@@ -86,19 +86,19 @@ public class RegionsTicketFilter implements GatewayFilter, Ordered {
                     // Couples API에서 티켓 정보 조회
                     return couplesApiClient.getTicketInfo(token, correlationId)
                         .flatMap(ticketResponse -> {
-                            String coupleId = ticketResponse.getCoupleId().toString();
-                            log.info("Ticket info retrieved for couple_id: {}, tickat: {}", 
-                                    coupleId, ticketResponse.getTickat());
+                            String coupleId = ticketResponse.getCoupleId();
+                            log.info("Ticket info retrieved for couple_id: {}, ticket: {}", 
+                                    coupleId, ticketResponse.getTicket());
                             
                             // 티켓 개수 확인
-                            if (ticketResponse.getTickat() == null || ticketResponse.getTickat() <= 0) {
+                            if (ticketResponse.getTicket() == null || ticketResponse.getTicket() <= 0) {
                                 log.warn("No tickets available for couple_id: {}", coupleId);
                                 return onError(exchange, "요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", 
                                               HttpStatus.TOO_MANY_REQUESTS, "42901", 
                                               "보유한 티켓이 없어서 지역을 해제할 수 없습니다.");
                             }
                             
-                            log.info("Ticket validation passed for couple_id: {}, tickat: {}", coupleId, ticketResponse.getTickat());
+                            log.info("Ticket validation passed for couple_id: {}, ticket: {}", coupleId, ticketResponse.getTicket());
                             
                             // Territory 서비스로 요청 전달 (JWT 없이, 바디 수정)
                             String newBody = String.format("{\"coupleId\": \"%s\", \"regionId\": \"%s\"}", 

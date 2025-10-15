@@ -12,19 +12,10 @@ public class TicketResponse {
     private String status;
     
     @JsonProperty("coupleId")
-    private Long coupleId;
+    private String coupleId;
     
-    @JsonProperty("tickat")
-    private Integer tickat;
-    
-    @JsonProperty("reroll")
-    private Integer reroll;
-    
-    @JsonProperty("loveDay")
-    private Long loveDay;
-    
-    @JsonProperty("diaryCount")
-    private Integer diaryCount;
+    @JsonProperty("ticket")
+    private Integer ticket;
     
     @JsonProperty("lastSyncedAt")
     private String lastSyncedAt;
