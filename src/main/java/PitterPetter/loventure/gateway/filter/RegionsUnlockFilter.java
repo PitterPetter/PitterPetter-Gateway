@@ -40,7 +40,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     private final CouplesApiClient couplesApiClient;
     
     // 필터가 적용될 경로
-    private static final String TARGET_PATH = "/regions/unlock";
+    private static final String TARGET_PATH = "/api/regions/unlock";
     
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
