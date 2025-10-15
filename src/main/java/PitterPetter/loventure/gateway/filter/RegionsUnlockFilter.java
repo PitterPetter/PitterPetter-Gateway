@@ -17,6 +17,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import PitterPetter.loventure.gateway.client.CouplesApiClient;
 import PitterPetter.loventure.gateway.service.RedisService;
 import PitterPetter.loventure.gateway.util.JwtUtil;
 import io.jsonwebtoken.Claims;
@@ -36,6 +37,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
     private final RedisService redisService;
+    private final CouplesApiClient couplesApiClient;
     
     // 필터가 적용될 경로
     private static final String TARGET_PATH = "/regions/unlock";
@@ -170,8 +172,11 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             
             log.info("🎫 티켓 정보 - ticket: {}, isTodayTicket: {}", ticket, isTodayTicket);
             
+            // JWT 토큰 추출 (비동기 API 호출용)
+            String jwtToken = extractJwtTokenFromRequest(exchange);
+            
             // 비즈니스 로직 처리
-            return processTicketLogic(coupleId, ticketMap, ticket, isTodayTicket)
+            return processTicketLogic(coupleId, ticketMap, ticket, isTodayTicket, jwtToken)
                 .map(updatedTicketMap -> {
                     // Redis 업데이트 (동기식)
                     redisService.updateCoupleTicketInfo(coupleId, updatedTicketMap);
@@ -189,7 +194,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
      * 케이스별로 티켓 상태를 검증하고 업데이트된 데이터 반환
      */
     private Mono<Map<String, Object>> processTicketLogic(String coupleId, Map<String, Object> ticketMap, 
-                                                         int ticket, String isTodayTicket) {
+                                                         int ticket, String isTodayTicket, String jwtToken) {
         
         if ("true".equals(isTodayTicket)) {
             // 케이스 1: isTodayTicket = "true" → false로 변경하고 허용
@@ -199,8 +204,8 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             updatedTicketMap.put("isTodayTicket", "false");
             updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
             
-            // 비동기적으로 Couples API 호출 예정
-            scheduleAsyncCouplesApiUpdate(coupleId, updatedTicketMap);
+            // 비동기적으로 Couples API 호출
+            scheduleAsyncCouplesApiUpdate(coupleId, updatedTicketMap, jwtToken);
             
             return Mono.just(updatedTicketMap);
             
@@ -213,8 +218,8 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                 updatedTicketMap.put("ticket", ticket - 1);
                 updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
                 
-                // 비동기적으로 Couples API 호출 예정
-                scheduleAsyncCouplesApiUpdate(coupleId, updatedTicketMap);
+                // 비동기적으로 Couples API 호출
+                scheduleAsyncCouplesApiUpdate(coupleId, updatedTicketMap, jwtToken);
                 
                 return Mono.just(updatedTicketMap);
                 
@@ -231,11 +236,41 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     
     /**
      * 비동기적으로 Couples API 호출 스케줄링
-     * TODO: CouplesApiClient 구현 후 실제 API 호출로 변경 예정
+     * Reactor의 Mono.fromRunnable을 사용하여 백그라운드에서 API 호출
      */
-    private void scheduleAsyncCouplesApiUpdate(String coupleId, Map<String, Object> ticketData) {
+    private void scheduleAsyncCouplesApiUpdate(String coupleId, Map<String, Object> ticketData, String jwtToken) {
         log.info("🔄 비동기 Couples API 호출 스케줄링 - coupleId: {}", coupleId);
-        // 실제 구현은 CouplesApiClient 완성 후 추가 예정
+        
+        // Correlation ID 생성 (현재 시간 + coupleId로 고유성 보장)
+        String correlationId = "regions-unlock-" + coupleId + "-" + System.currentTimeMillis();
+        
+        // 비동기적으로 Couples API 호출
+        Mono.fromRunnable(() -> {
+            if (jwtToken != null) {
+                couplesApiClient.updateTicketInfo(jwtToken, ticketData, correlationId)
+                    .subscribe(
+                        response -> log.info("✅ 비동기 Couples API 호출 성공 - coupleId: {}, correlation_id: {}", 
+                                           coupleId, correlationId),
+                        error -> log.error("❌ 비동기 Couples API 호출 실패 - coupleId: {}, correlation_id: {}, error: {}", 
+                                         coupleId, correlationId, error.getMessage())
+                    );
+            } else {
+                log.warn("⚠️ JWT 토큰이 null이어서 비동기 API 호출 건너뜀 - coupleId: {}", coupleId);
+            }
+        }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic())
+          .subscribe();
+    }
+    
+    /**
+     * 현재 요청에서 JWT 토큰 추출
+     * Authorization 헤더에서 Bearer 토큰을 추출
+     */
+    private String extractJwtTokenFromRequest(ServerWebExchange exchange) {
+        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.replace("Bearer ", "").trim();
+        }
+        return null;
     }
     
     /**
