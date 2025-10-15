@@ -9,19 +9,12 @@ spring:
       fail-fast: true
   profiles:
     active: prod
-  # Redis 설정 (Config Server에서 오버라이드 가능)
-  redis:
-    host: localhost
-    port: 6379
-    password: 
-    database: 0
-    timeout: 2000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
+
+# Redis 일일 초기화 설정
+redis:
+  daily-reset:
+    enabled: true          # 일일 초기화 활성화/비활성화
+    mode: db              # "db" (현재 DB만) 또는 "all" (전체 Redis)
 
 # 로깅 설정
 logging:
@@ -31,6 +24,7 @@ logging:
     PitterPetter.loventure.gateway.config.RedisConnectionLogger: INFO
     PitterPetter.loventure.gateway.controller.RedisHealthController: INFO
     PitterPetter.loventure.gateway.service.RedisService: INFO
+    PitterPetter.loventure.gateway.scheduler.RedisDailyResetScheduler: INFO
     
     # Spring Redis 로깅
     org.springframework.data.redis: INFO
