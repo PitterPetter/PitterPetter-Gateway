@@ -169,14 +169,15 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             
             int ticket = (Integer) ticketMap.get("ticket");
             String isTodayTicket = (String) ticketMap.get("isTodayTicket");
+            String redisCoupleId = String.valueOf(ticketMap.get("coupleId")); // coupleId를 string으로 변환
             
-            log.info("🎫 티켓 정보 - ticket: {}, isTodayTicket: {}", ticket, isTodayTicket);
+            log.info("🎫 티켓 정보 - coupleId: {}, ticket: {}, isTodayTicket: {}", redisCoupleId, ticket, isTodayTicket);
             
             // JWT 토큰 추출 (비동기 API 호출용)
             String jwtToken = extractJwtTokenFromRequest(exchange);
             
             // 비즈니스 로직 처리
-            return processTicketLogic(coupleId, ticketMap, ticket, isTodayTicket, jwtToken)
+            return processTicketLogic(coupleId, ticketMap, ticket, isTodayTicket, jwtToken, redisCoupleId)
                 .map(updatedTicketMap -> {
                     // Redis 업데이트 (동기식)
                     redisService.updateCoupleTicketInfo(coupleId, updatedTicketMap);
@@ -194,13 +195,14 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
      * 케이스별로 티켓 상태를 검증하고 업데이트된 데이터 반환
      */
     private Mono<Map<String, Object>> processTicketLogic(String coupleId, Map<String, Object> ticketMap, 
-                                                         int ticket, String isTodayTicket, String jwtToken) {
+                                                         int ticket, String isTodayTicket, String jwtToken, String redisCoupleId) {
         
         if ("true".equals(isTodayTicket)) {
             // 케이스 1: isTodayTicket = "true" → false로 변경하고 허용
             log.info("✅ 케이스 1: isTodayTicket을 false로 변경 - coupleId: {}", coupleId);
             
             Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
+            updatedTicketMap.put("coupleId", redisCoupleId); // coupleId를 string으로 저장
             updatedTicketMap.put("isTodayTicket", "false");
             updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
             
@@ -215,6 +217,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                 log.info("✅ 케이스 2: ticket 1 차감 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
                 
                 Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
+                updatedTicketMap.put("coupleId", redisCoupleId); // coupleId를 string으로 저장
                 updatedTicketMap.put("ticket", ticket - 1);
                 updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
                 
