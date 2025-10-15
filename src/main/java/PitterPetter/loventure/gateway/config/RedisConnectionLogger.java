@@ -1,5 +1,6 @@
 package PitterPetter.loventure.gateway.config;
 
+import PitterPetter.loventure.gateway.scheduler.RedisDailyResetScheduler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,9 @@ public class RedisConnectionLogger implements ApplicationListener<ApplicationRea
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     
+    @Autowired
+    private RedisDailyResetScheduler redisDailyResetScheduler;
+    
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
         log.info("🚀 Gateway 서비스 시작 - Redis 연결 상태 확인 중...");
@@ -37,6 +41,9 @@ public class RedisConnectionLogger implements ApplicationListener<ApplicationRea
                 
                 // Redis 정보 출력
                 logRedisInfo();
+                
+                // 스케줄러 정보 출력
+                redisDailyResetScheduler.logSchedulerInfo();
                 
             } else {
                 log.error("❌ Redis 연결 실패 - 응답 값 불일치 (예상: OK, 실제: {})", result);
