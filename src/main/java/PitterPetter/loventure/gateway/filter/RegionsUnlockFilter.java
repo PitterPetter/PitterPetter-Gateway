@@ -302,7 +302,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     
     @Override
     public int getOrder() {
-        // JwtAuthorizationFilter 다음에 실행되도록 설정
-        return 0;
+        // JwtAuthorizationFilter(-1) 다음에 실행되도록 설정
+        return 1;
     }
 }
