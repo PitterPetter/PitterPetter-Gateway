@@ -17,6 +17,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import PitterPetter.loventure.gateway.service.RedisService;
 import PitterPetter.loventure.gateway.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     private static final Logger log = LoggerFactory.getLogger(RegionsUnlockFilter.class);
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final RedisService redisService;
     
     // 필터가 적용될 경로
     private static final String TARGET_PATH = "/regions/unlock";
@@ -145,12 +147,95 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     
     /**
      * 티켓 정보 검증 및 처리
-     * TODO: Redis 조회 및 비즈니스 로직 구현 예정
+     * Redis에서 coupleId로 티켓 정보를 조회하고 비즈니스 로직에 따라 허용/차단 결정
      */
     private Mono<Boolean> validateTicketAndProcess(ServerWebExchange exchange, String coupleId, String regions) {
-        // 임시로 true 반환 (Redis 로직 구현 예정)
         log.info("🔍 티켓 검증 시작 - coupleId: {}, regions: {}", coupleId, regions);
-        return Mono.just(true);
+        
+        try {
+            // Redis에서 티켓 정보 조회 (동기식)
+            Object ticketData = redisService.getCoupleTicketInfo(coupleId);
+            
+            if (ticketData == null) {
+                log.warn("❌ Redis에 티켓 정보가 없음 - coupleId: {}", coupleId);
+                return Mono.just(false);
+            }
+            
+            // JSON 파싱하여 티켓 정보 추출
+            @SuppressWarnings("unchecked")
+            Map<String, Object> ticketMap = objectMapper.convertValue(ticketData, Map.class);
+            
+            int ticket = (Integer) ticketMap.get("ticket");
+            String isTodayTicket = (String) ticketMap.get("isTodayTicket");
+            
+            log.info("🎫 티켓 정보 - ticket: {}, isTodayTicket: {}", ticket, isTodayTicket);
+            
+            // 비즈니스 로직 처리
+            return processTicketLogic(coupleId, ticketMap, ticket, isTodayTicket)
+                .map(updatedTicketMap -> {
+                    // Redis 업데이트 (동기식)
+                    redisService.updateCoupleTicketInfo(coupleId, updatedTicketMap);
+                    return true;
+                });
+                
+        } catch (Exception e) {
+            log.error("🚨 티켓 검증 중 오류 - coupleId: {}, error: {}", coupleId, e.getMessage(), e);
+            return Mono.just(false);
+        }
+    }
+    
+    /**
+     * 티켓 비즈니스 로직 처리
+     * 케이스별로 티켓 상태를 검증하고 업데이트된 데이터 반환
+     */
+    private Mono<Map<String, Object>> processTicketLogic(String coupleId, Map<String, Object> ticketMap, 
+                                                         int ticket, String isTodayTicket) {
+        
+        if ("true".equals(isTodayTicket)) {
+            // 케이스 1: isTodayTicket = "true" → false로 변경하고 허용
+            log.info("✅ 케이스 1: isTodayTicket을 false로 변경 - coupleId: {}", coupleId);
+            
+            Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
+            updatedTicketMap.put("isTodayTicket", "false");
+            updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
+            
+            // 비동기적으로 Couples API 호출 예정
+            scheduleAsyncCouplesApiUpdate(coupleId, updatedTicketMap);
+            
+            return Mono.just(updatedTicketMap);
+            
+        } else if ("false".equals(isTodayTicket)) {
+            if (ticket > 0) {
+                // 케이스 2: isTodayTicket = "false" + ticket > 0 → ticket 1 차감하고 허용
+                log.info("✅ 케이스 2: ticket 1 차감 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
+                
+                Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
+                updatedTicketMap.put("ticket", ticket - 1);
+                updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
+                
+                // 비동기적으로 Couples API 호출 예정
+                scheduleAsyncCouplesApiUpdate(coupleId, updatedTicketMap);
+                
+                return Mono.just(updatedTicketMap);
+                
+            } else {
+                // 케이스 3: isTodayTicket = "false" + ticket = 0 → 차단
+                log.warn("❌ 케이스 3: 티켓 부족 - coupleId: {}, ticket: {}", coupleId, ticket);
+                return Mono.error(new RuntimeException("티켓이 없습니다."));
+            }
+        } else {
+            log.error("🚨 잘못된 isTodayTicket 값 - coupleId: {}, isTodayTicket: {}", coupleId, isTodayTicket);
+            return Mono.error(new RuntimeException("잘못된 티켓 상태입니다."));
+        }
+    }
+    
+    /**
+     * 비동기적으로 Couples API 호출 스케줄링
+     * TODO: CouplesApiClient 구현 후 실제 API 호출로 변경 예정
+     */
+    private void scheduleAsyncCouplesApiUpdate(String coupleId, Map<String, Object> ticketData) {
+        log.info("🔄 비동기 Couples API 호출 스케줄링 - coupleId: {}", coupleId);
+        // 실제 구현은 CouplesApiClient 완성 후 추가 예정
     }
     
     /**

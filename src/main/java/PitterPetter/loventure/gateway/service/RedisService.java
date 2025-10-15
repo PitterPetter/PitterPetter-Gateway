@@ -134,6 +134,49 @@ public class RedisService {
         return getValueReactive(key);
     }
     
+    // ========== Regions Unlock 필터용 Redis 메서드 ==========
+    
+    /**
+     * coupleId로 티켓 정보 조회 (동기식) - Regions Unlock 필터용
+     * Key 형식: coupleId:{coupleId}
+     */
+    public Object getCoupleTicketInfo(String coupleId) {
+        String key = "coupleId:" + coupleId;
+        Object value = getValue(key);
+        log.info("🎫 Regions Unlock - Redis 조회 - Key: {}, Value: {}", key, value);
+        return value;
+    }
+    
+    /**
+     * coupleId로 티켓 정보 조회 (비동기식) - Regions Unlock 필터용
+     * Key 형식: coupleId:{coupleId}
+     */
+    public Mono<Object> getCoupleTicketInfoReactive(String coupleId) {
+        String key = "coupleId:" + coupleId;
+        return getValueReactive(key)
+            .doOnNext(value -> log.info("🎫 Regions Unlock - Redis 조회 (Reactive) - Key: {}, Value: {}", key, value));
+    }
+    
+    /**
+     * coupleId로 티켓 정보 업데이트 (동기식) - Regions Unlock 필터용
+     * Key 형식: coupleId:{coupleId}
+     */
+    public void updateCoupleTicketInfo(String coupleId, Object ticketData) {
+        String key = "coupleId:" + coupleId;
+        setValue(key, ticketData);
+        log.info("🎫 Regions Unlock - Redis 업데이트 - Key: {}, Value: {}", key, ticketData);
+    }
+    
+    /**
+     * coupleId로 티켓 정보 업데이트 (비동기식) - Regions Unlock 필터용
+     * Key 형식: coupleId:{coupleId}
+     */
+    public Mono<Boolean> updateCoupleTicketInfoReactive(String coupleId, Object ticketData) {
+        String key = "coupleId:" + coupleId;
+        return setValueReactive(key, ticketData)
+            .doOnSuccess(result -> log.info("🎫 Regions Unlock - Redis 업데이트 (Reactive) - Key: {}, Value: {}", key, ticketData));
+    }
+    
     /**
      * 사용자 세션 저장 (동기식)
      */
@@ -148,5 +191,63 @@ public class RedisService {
     public Mono<Boolean> storeUserSessionReactive(String sessionId, Object sessionData, Duration ttl) {
         String key = "session:" + sessionId;
         return setValueWithTTLReactive(key, sessionData, ttl);
+    }
+    
+    // ========== Redis 초기화 관련 메서드 ==========
+    
+    /**
+     * Redis 전체 데이터 삭제 (동기식)
+     */
+    public void flushAll() {
+        try {
+            redisTemplate.getConnectionFactory()
+                    .getConnection()
+                    .flushAll();
+            log.info("🗑️ Redis 전체 데이터 삭제 완료 (동기식)");
+        } catch (Exception e) {
+            log.error("❌ Redis 전체 데이터 삭제 실패 (동기식): {}", e.getMessage());
+            throw new RuntimeException("Redis 전체 데이터 삭제 실패", e);
+        }
+    }
+    
+    /**
+     * Redis 전체 데이터 삭제 (비동기식)
+     */
+    public Mono<Boolean> flushAllReactive() {
+        return reactiveRedisTemplate.getConnectionFactory()
+                .getReactiveConnection()
+                .serverCommands()
+                .flushAll()
+                .doOnSuccess(result -> log.info("🗑️ Redis 전체 데이터 삭제 완료 (비동기식)"))
+                .doOnError(error -> log.error("❌ Redis 전체 데이터 삭제 실패 (비동기식): {}", error.getMessage()))
+                .then(Mono.just(true));
+    }
+    
+    /**
+     * Redis 데이터베이스 초기화 (현재 DB만)
+     */
+    public void flushDb() {
+        try {
+            redisTemplate.getConnectionFactory()
+                    .getConnection()
+                    .flushDb();
+            log.info("🗑️ Redis 현재 데이터베이스 초기화 완료");
+        } catch (Exception e) {
+            log.error("❌ Redis 현재 데이터베이스 초기화 실패: {}", e.getMessage());
+            throw new RuntimeException("Redis 데이터베이스 초기화 실패", e);
+        }
+    }
+    
+    /**
+     * Redis 데이터베이스 초기화 (비동기식)
+     */
+    public Mono<Boolean> flushDbReactive() {
+        return reactiveRedisTemplate.getConnectionFactory()
+                .getReactiveConnection()
+                .serverCommands()
+                .flushDb()
+                .doOnSuccess(result -> log.info("🗑️ Redis 현재 데이터베이스 초기화 완료 (비동기식)"))
+                .doOnError(error -> log.error("❌ Redis 현재 데이터베이스 초기화 실패 (비동기식): {}", error.getMessage()))
+                .then(Mono.just(true));
     }
 }
