@@ -43,7 +43,14 @@ src/main/resources/application-secret.yml
 
 .DS_Store
 
+# Log files
+*.log
+app.log
+
 # Local notes
 NOTE.md
 TASK.md
 result.md
+logging.md
+finalApi.md
+final.md

@@ -2,8 +2,8 @@ package PitterPetter.loventure.gateway.client;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -33,17 +33,17 @@ public class CouplesApiClient {
             .header("Accept", "application/json")
             .header("X-Correlation-Id", correlationId)
             .retrieve()
-            .onStatus(HttpStatus::is4xxClientError, response -> {
+            .onStatus(HttpStatusCode::is4xxClientError, response -> {
                 log.warn("Couples API client error: {}", response.statusCode());
                 return response.bodyToMono(String.class)
                     .flatMap(body -> Mono.error(new CouplesApiException(
-                        "Client error: " + body, response.statusCode())));
+                        "Client error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
             })
-            .onStatus(HttpStatus::is5xxServerError, response -> {
+            .onStatus(HttpStatusCode::is5xxServerError, response -> {
                 log.error("Couples API server error: {}", response.statusCode());
                 return response.bodyToMono(String.class)
                     .flatMap(body -> Mono.error(new CouplesApiException(
-                        "Server error: " + body, response.statusCode())));
+                        "Server error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
             })
             .bodyToMono(TicketResponse.class)
             .timeout(Duration.ofSeconds(5))
@@ -51,10 +51,52 @@ public class CouplesApiClient {
                 .filter(throwable -> throwable instanceof WebClientResponseException))
             .doOnSuccess(response -> {
                 log.info("Successfully retrieved ticket info, correlation_id: {}, tickat: {}", 
-                        correlationId, response.getTickat());
+                        correlationId, response.getTicket());
             })
             .doOnError(error -> {
                 log.error("Failed to retrieve ticket info, correlation_id: {}, error: {}", 
+                         correlationId, error.getMessage());
+            });
+    }
+    
+    /**
+     * 티켓 정보 업데이트 (PUT 요청)
+     * Regions Unlock 필터에서 비동기적으로 호출하는 메서드
+     */
+    public Mono<TicketResponse> updateTicketInfo(String jwtToken, Object ticketData, String correlationId) {
+        log.info("Calling Couples API for ticket update, correlation_id: {}", correlationId);
+        
+        return couplesWebClient
+            .put()
+            .uri("/api/couples/ticket")
+            .header("Authorization", "Bearer " + jwtToken)
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("X-Correlation-Id", correlationId)
+            .bodyValue(ticketData)
+            .retrieve()
+            .onStatus(HttpStatusCode::is4xxClientError, response -> {
+                log.warn("Couples API client error for ticket update: {}", response.statusCode());
+                return response.bodyToMono(String.class)
+                    .flatMap(body -> Mono.error(new CouplesApiException(
+                        "Client error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
+            })
+            .onStatus(HttpStatusCode::is5xxServerError, response -> {
+                log.error("Couples API server error for ticket update: {}", response.statusCode());
+                return response.bodyToMono(String.class)
+                    .flatMap(body -> Mono.error(new CouplesApiException(
+                        "Server error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
+            })
+            .bodyToMono(TicketResponse.class)
+            .timeout(Duration.ofSeconds(10))
+            .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                .filter(throwable -> throwable instanceof WebClientResponseException))
+            .doOnSuccess(response -> {
+                log.info("Successfully updated ticket info, correlation_id: {}, ticket: {}", 
+                        correlationId, response.getTicket());
+            })
+            .doOnError(error -> {
+                log.error("Failed to update ticket info, correlation_id: {}, error: {}", 
                          correlationId, error.getMessage());
             });
     }
