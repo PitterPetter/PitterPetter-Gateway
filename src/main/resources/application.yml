@@ -9,3 +9,33 @@ spring:
       fail-fast: true
   profiles:
     active: prod
+
+# Redis 일일 초기화 설정
+redis:
+  daily-reset:
+    enabled: true          # 일일 초기화 활성화/비활성화
+    mode: db              # "db" (현재 DB만) 또는 "all" (전체 Redis)
+
+# 로깅 설정
+logging:
+  level:
+    # Redis 관련 로깅
+    PitterPetter.loventure.gateway.config.RedisConfig: INFO
+    PitterPetter.loventure.gateway.config.RedisConnectionLogger: INFO
+    PitterPetter.loventure.gateway.controller.RedisHealthController: INFO
+    PitterPetter.loventure.gateway.service.RedisService: INFO
+    PitterPetter.loventure.gateway.scheduler.RedisDailyResetScheduler: INFO
+    
+    # Spring Redis 로깅
+    org.springframework.data.redis: INFO
+    org.springframework.data.redis.connection: DEBUG
+    org.springframework.data.redis.core: DEBUG
+    
+    # Lettuce 연결 풀 로깅
+    io.lettuce.core: INFO
+    
+    # Gateway 전체 로깅
+    PitterPetter.loventure.gateway: INFO
+    
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
