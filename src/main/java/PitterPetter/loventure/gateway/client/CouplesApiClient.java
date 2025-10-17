@@ -24,7 +24,12 @@ public class CouplesApiClient {
     private final WebClient couplesWebClient;
 
     public Mono<TicketResponse> getTicketInfo(String jwtToken) {
-        log.info("Calling Couples API for ticket info");
+        log.info("🔄 Auth Service API 호출 시작 - Couples API for ticket info");
+        log.debug("🔐 JWT 토큰 확인 - token length: {}", jwtToken != null ? jwtToken.length() : 0);
+        
+
+        //API 호출이 얼마나 오래 걸리는지 측정
+        long startTime = System.currentTimeMillis();
         
         return couplesWebClient
             .get()
@@ -33,26 +38,43 @@ public class CouplesApiClient {
             .header("Accept", "application/json")
             .retrieve()
             .onStatus(HttpStatusCode::is4xxClientError, response -> {
-                log.warn("Couples API client error: {}", response.statusCode());
+                long responseTime = System.currentTimeMillis() - startTime;
+                log.warn("❌ Couples API client error - status: {}, 응답시간: {}ms", response.statusCode(), responseTime);
                 return response.bodyToMono(String.class)
-                    .flatMap(body -> Mono.error(new CouplesApiException(
-                        "Client error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
+                    .flatMap(body -> {
+                        log.error("❌ Couples API 4xx 에러 상세 - status: {}, body: {}", response.statusCode(), body);
+                        return Mono.error(new CouplesApiException(
+                            "Client error: " + body, HttpStatus.valueOf(response.statusCode().value())));
+                    });
+                    //4xx 에러 발생 시 (400, 401, 403, 404 등)
+                    //에러 응답 body를 읽어서 로그에 상세 정보 기록
             })
             .onStatus(HttpStatusCode::is5xxServerError, response -> {
-                log.error("Couples API server error: {}", response.statusCode());
+                long responseTime = System.currentTimeMillis() - startTime;
+                log.error("🚨 Couples API server error - status: {}, 응답시간: {}ms", response.statusCode(), responseTime);
                 return response.bodyToMono(String.class)
-                    .flatMap(body -> Mono.error(new CouplesApiException(
-                        "Server error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
+                    .flatMap(body -> {
+                        log.error("🚨 Couples API 5xx 에러 상세 - status: {}, body: {}", response.statusCode(), body);
+                        return Mono.error(new CouplesApiException(
+                            "Server error: " + body, HttpStatus.valueOf(response.statusCode().value())));
+                    });
+                    //5xx 에러 발생 시 (500, 502, 503, 504 등)
+                    //에러 응답 body를 읽어서 로그에 상세 정보 기록
             })
             .bodyToMono(TicketResponse.class)
             .timeout(Duration.ofSeconds(5))
             .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
                 .filter(throwable -> throwable instanceof WebClientResponseException))
             .doOnSuccess(response -> {
-                log.info("Successfully retrieved ticket info, ticket: {}", response.getTicket());
+                long responseTime = System.currentTimeMillis() - startTime;
+                log.info("✅ Auth Service API 호출 성공 - ticket: {}, 응답시간: {}ms", response.getTicket(), responseTime);
+                log.debug("📋 TicketResponse 상세 - coupleId: {}, lastSyncedAt: {}", 
+                         response.getCoupleId(), response.getLastSyncedAt());
             })
+            
             .doOnError(error -> {
-                log.error("Failed to retrieve ticket info, error: {}", error.getMessage());
+                long responseTime = System.currentTimeMillis() - startTime;
+                log.error("❌ Auth Service API 호출 실패 - error: {}, 응답시간: {}ms", error.getMessage(), responseTime);
             });
     }
     
