@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -84,6 +85,7 @@ public class RedisConfig {
     }
 
     @Bean
+    @Order(2)
     public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(RedisConnectionFactory connectionFactory) {
         log.info("⚡ ReactiveRedisTemplate Bean 생성 시작 - 논블로킹 Redis 클라이언트");
         log.info("   - ConnectionFactory 타입: {}", connectionFactory.getClass().getSimpleName());
@@ -106,6 +108,7 @@ public class RedisConfig {
 
     @Bean
     @Primary
+    @Order(1)
     public ReactiveStringRedisTemplate reactiveStringRedisTemplate(RedisConnectionFactory connectionFactory) {
         log.info("🔤 ReactiveStringRedisTemplate Bean 생성 시작 - Gateway Rate Limiter용");
         log.info("   - ConnectionFactory 타입: {}", connectionFactory.getClass().getSimpleName());
