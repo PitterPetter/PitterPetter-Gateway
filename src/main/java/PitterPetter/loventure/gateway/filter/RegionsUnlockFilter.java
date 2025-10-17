@@ -388,7 +388,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         log.debug("🎫 티켓 비즈니스 로직 검증 - ticket: {}", ticket);
         log.debug("📊 비즈니스 로직 입력 파라미터:");
         log.debug("  - coupleId: {}", coupleId);
-        log.debug("  - ticket: {} (타입: {})", ticket, ticket.getClass().getSimpleName());
+        log.debug("  - ticket: {} (타입: int)", ticket);
         log.debug("  - redisCoupleId: {}", redisCoupleId);
         log.debug("  - jwtToken 존재: {}", jwtToken != null);
         
