@@ -145,8 +145,20 @@ public class RedisService {
      */
     public Object getCoupleTicketInfo(String coupleId) {
         String key = "coupleId:" + coupleId;
+        log.debug("🔍 Regions Unlock - Redis 조회 시작 - Key: {}", key);
+        
+        long startTime = System.currentTimeMillis();
         Object value = getValue(key);
-        log.info("🎫 Regions Unlock - Redis 조회 - Key: {}, Value: {}", key, value);
+        long queryTime = System.currentTimeMillis() - startTime;
+        
+        if (value != null) {
+            log.info("✅ Regions Unlock - Redis 캐시 히트 - Key: {}, Value: {}, 조회시간: {}ms", key, value, queryTime);
+        } else {
+            log.warn("❌ Regions Unlock - Redis 캐시 미스 - Key: {}, 조회시간: {}ms", key, queryTime);
+        }
+        // 조회 시간 계산: startTime에서 현재 시간을 빼서 Redis 조회 소요 시간 측정
+        //캐시 히트: value != null이면 데이터가 Redis에 있음 → INFO 레벨로 성공 로그
+        //캐시 미스: value == null이면 데이터가 Redis에 없음 → WARN 레벨로 미스 로그
         return value;
     }
     
@@ -156,8 +168,26 @@ public class RedisService {
      */
     public Mono<Object> getCoupleTicketInfoReactive(String coupleId) {
         String key = "coupleId:" + coupleId;
+        log.debug("🔍 Regions Unlock - Redis 조회 시작 (Reactive) - Key: {}", key);
+        
+        long startTime = System.currentTimeMillis();
         return getValueReactive(key)
-            .doOnNext(value -> log.info("🎫 Regions Unlock - Redis 조회 (Reactive) - Key: {}, Value: {}", key, value));
+            .doOnNext(value -> {
+                long queryTime = System.currentTimeMillis() - startTime;
+                if (value != null) {
+                    log.info("✅ Regions Unlock - Redis 캐시 히트 (Reactive) - Key: {}, Value: {}, 조회시간: {}ms", key, value, queryTime);
+                } else {
+                    log.warn("❌ Regions Unlock - Redis 캐시 미스 (Reactive) - Key: {}, 조회시간: {}ms", key, queryTime);
+                }
+            })
+            .doOnError(error -> {
+                long queryTime = System.currentTimeMillis() - startTime;
+                log.error("🚨 Regions Unlock - Redis 조회 에러 (Reactive) - Key: {}, 조회시간: {}ms, error: {}", key, queryTime, error.getMessage());
+            });
+           // .doOnNext(): 성공적으로 데이터를 받았을 때 실행
+           //캐시 히트/미스에 따라 다른 로그 레벨 사용
+           //.doOnError(): 에러 발생 시 실행
+           //Redis 연결 실패, 타임아웃 등 에러 상황 로깅
     }
     
     /**
@@ -167,10 +197,16 @@ public class RedisService {
      */
     public void updateCoupleTicketInfo(String coupleId, Object ticketData) {
         String key = "coupleId:" + coupleId;
+        log.debug("💾 Regions Unlock - Redis 업데이트 시작 - Key: {}, Value: {}", key, ticketData);
+        
+        long startTime = System.currentTimeMillis();
         setValue(key, ticketData);
-        log.info("🎫 Regions Unlock - Redis 업데이트 - Key: {}, Value: {}", key, ticketData);
+        long updateTime = System.currentTimeMillis() - startTime;
+        
+        log.info("✅ Regions Unlock - Redis 업데이트 완료 - Key: {}, Value: {}, 업데이트시간: {}ms", key, ticketData, updateTime);
         
         // Write-Through 패턴: Redis Stream에 동기화 이벤트 발행
+        log.debug("📡 Write-Through 패턴 - Stream 이벤트 발행 시작 - coupleId: {}", coupleId);
         publishSyncEventSync(coupleId, ticketData);
     }
     
@@ -180,8 +216,18 @@ public class RedisService {
      */
     public Mono<Boolean> updateCoupleTicketInfoReactive(String coupleId, Object ticketData) {
         String key = "coupleId:" + coupleId;
+        log.debug("💾 Regions Unlock - Redis 업데이트 시작 (Reactive) - Key: {}, Value: {}", key, ticketData);
+        
+        long startTime = System.currentTimeMillis();
         return setValueReactive(key, ticketData)
-            .doOnSuccess(result -> log.info("🎫 Regions Unlock - Redis 업데이트 (Reactive) - Key: {}, Value: {}", key, ticketData));
+            .doOnSuccess(result -> {
+                long updateTime = System.currentTimeMillis() - startTime;
+                log.info("✅ Regions Unlock - Redis 업데이트 완료 (Reactive) - Key: {}, Value: {}, 업데이트시간: {}ms", key, ticketData, updateTime);
+            })
+            .doOnError(error -> {
+                long updateTime = System.currentTimeMillis() - startTime;
+                log.error("🚨 Regions Unlock - Redis 업데이트 에러 (Reactive) - Key: {}, 업데이트시간: {}ms, error: {}", key, updateTime, error.getMessage());
+            });
     }
     
     // ========== Redis Write-Through 패턴 구현 ==========
@@ -263,6 +309,8 @@ public class RedisService {
      * 동기식 메서드에서도 사용할 수 있도록 제공
      */
     public void publishSyncEventSync(String coupleId, Object ticketData) {
+        log.debug("📡 Redis Stream 이벤트 발행 시작 (동기식) - coupleId: {}", coupleId);
+        
         try {
             Map<String, Object> event = Map.of(
                 "coupleId", coupleId,
@@ -272,15 +320,18 @@ public class RedisService {
                 "eventType", "ticket-update"
             );
             
+            log.debug("📋 Stream 이벤트 데이터 생성 완료 - event: {}", event);
             log.info("📡 Redis Stream 이벤트 발행 (동기식) - coupleId: {}, eventType: ticket-update", coupleId);
             
+            long startTime = System.currentTimeMillis();
             // 동기식으로 Redis Stream에 이벤트 추가
             RecordId recordId = redisTemplate.opsForStream().add("ticket-sync-stream", event);
+            long publishTime = System.currentTimeMillis() - startTime;
             
             if (recordId != null) {
-                log.info("✅ Redis Stream 이벤트 발행 성공 (동기식) - coupleId: {}, recordId: {}", coupleId, recordId.getValue());
+                log.info("✅ Redis Stream 이벤트 발행 성공 (동기식) - coupleId: {}, recordId: {}, 발행시간: {}ms", coupleId, recordId.getValue(), publishTime);
             } else {
-                log.error("❌ Redis Stream 이벤트 발행 실패 (동기식) - coupleId: {}", coupleId);
+                log.error("❌ Redis Stream 이벤트 발행 실패 (동기식) - coupleId: {}, 발행시간: {}ms", coupleId, publishTime);
             }
             
         } catch (Exception e) {
