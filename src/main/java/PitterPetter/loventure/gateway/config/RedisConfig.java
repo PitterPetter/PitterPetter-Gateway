@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -63,24 +64,6 @@ public class RedisConfig {
         return factory;
     }
 
-    @Bean
-    public ReactiveRedisConnectionFactory reactiveRedisConnectionFactory() {
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
-        config.setHostName(redisHost);
-        config.setPort(redisPort);
-        config.setDatabase(redisDatabase);
-        
-        if (redisPassword != null && !redisPassword.isEmpty()) {
-            config.setPassword(redisPassword);
-            log.debug("🔐 Reactive Redis 비밀번호 설정됨");
-        } else {
-            log.debug("🔓 Reactive Redis 비밀번호 없음 (인증 없이 연결)");
-        }
-        
-        LettuceConnectionFactory factory = new LettuceConnectionFactory(config);
-        log.info("⚡ ReactiveRedisConnectionFactory 생성 완료 - {}:{}", redisHost, redisPort);
-        return factory;
-    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
@@ -101,7 +84,10 @@ public class RedisConfig {
     }
 
     @Bean
-    public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(ReactiveRedisConnectionFactory connectionFactory) {
+    public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(RedisConnectionFactory connectionFactory) {
+        log.info("⚡ ReactiveRedisTemplate Bean 생성 시작 - 논블로킹 Redis 클라이언트");
+        log.info("   - ConnectionFactory 타입: {}", connectionFactory.getClass().getSimpleName());
+        
         StringRedisSerializer keySerializer = new StringRedisSerializer();
         GenericJackson2JsonRedisSerializer valueSerializer = new GenericJackson2JsonRedisSerializer();
         
@@ -115,12 +101,19 @@ public class RedisConfig {
                 .build();
         
         log.info("⚡ ReactiveRedisTemplate Bean 생성 완료 - 논블로킹 Redis 클라이언트");
-        return new ReactiveRedisTemplate<>(connectionFactory, context);
+        return new ReactiveRedisTemplate<>((ReactiveRedisConnectionFactory) connectionFactory, context);
     }
 
     @Bean
-    public ReactiveStringRedisTemplate reactiveStringRedisTemplate(ReactiveRedisConnectionFactory connectionFactory) {
+    @Primary
+    public ReactiveStringRedisTemplate reactiveStringRedisTemplate(RedisConnectionFactory connectionFactory) {
+        log.info("🔤 ReactiveStringRedisTemplate Bean 생성 시작 - Gateway Rate Limiter용");
+        log.info("   - ConnectionFactory 타입: {}", connectionFactory.getClass().getSimpleName());
+        log.info("   - Redis 호스트: {}", redisHost);
+        log.info("   - Redis 포트: {}", redisPort);
+        
+        ReactiveStringRedisTemplate template = new ReactiveStringRedisTemplate((ReactiveRedisConnectionFactory) connectionFactory);
         log.info("🔤 ReactiveStringRedisTemplate Bean 생성 완료 - Gateway Rate Limiter용");
-        return new ReactiveStringRedisTemplate(connectionFactory);
+        return template;
     }
 }
