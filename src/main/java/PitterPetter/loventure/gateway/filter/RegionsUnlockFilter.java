@@ -56,10 +56,13 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         try {
             // 1. JwtAuthorizationFilter에서 파싱한 정보를 attributes에서 가져오기
             log.debug("🔍 ServerWebExchange attributes에서 사용자 정보 조회 시작 (요청 ID: {})", requestId);
+            log.debug("📋 현재 attributes 상태: {}", exchange.getAttributes());
+            
             String userId = exchange.getAttribute("userId");
             String coupleId = exchange.getAttribute("coupleId");
             
             log.info("👤 사용자 정보 조회 완료 - userId: {}, coupleId: {} (요청 ID: {})", userId, coupleId, requestId);
+            log.debug("🔍 attributes 조회 결과 - userId 존재: {}, coupleId 존재: {}", userId != null, coupleId != null);
             
             // 사용자 정보 검증
             if (userId == null) {
