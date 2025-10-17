@@ -156,10 +156,10 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                         return Mono.error(new IllegalArgumentException("Request body에 'regions' 필드가 없습니다."));
 
                     String regions;
-                    if (regionsObj instanceof String) {
-                        regions = (String) regionsObj;
-                    } else if (regionsObj instanceof java.util.List) {
+                    if (regionsObj instanceof java.util.List) {
                         regions = objectMapper.writeValueAsString(regionsObj);
+                    } else if (regionsObj instanceof String) {
+                        regions = (String) regionsObj;
                     } else {
                         return Mono.error(new IllegalArgumentException("regions 필드의 타입이 올바르지 않습니다."));
                     }
