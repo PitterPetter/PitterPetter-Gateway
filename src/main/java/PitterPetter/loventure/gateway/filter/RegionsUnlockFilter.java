@@ -209,9 +209,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             return Mono.empty();
         }
         
-        String correlationId = "cache-miss-" + coupleId + "-" + System.currentTimeMillis();
-        
-        return couplesApiClient.getTicketInfo(jwtToken, correlationId)
+        return couplesApiClient.getTicketInfo(jwtToken)
             .map(ticketResponse -> {
                 // TicketResponse를 Map으로 변환
                 Map<String, Object> ticketData = Map.of(

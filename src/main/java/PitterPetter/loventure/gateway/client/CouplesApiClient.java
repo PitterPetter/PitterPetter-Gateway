@@ -23,15 +23,14 @@ public class CouplesApiClient {
     private static final Logger log = LoggerFactory.getLogger(CouplesApiClient.class);
     private final WebClient couplesWebClient;
 
-    public Mono<TicketResponse> getTicketInfo(String jwtToken, String correlationId) {
-        log.info("Calling Couples API for ticket info, correlation_id: {}", correlationId);
+    public Mono<TicketResponse> getTicketInfo(String jwtToken) {
+        log.info("Calling Couples API for ticket info");
         
         return couplesWebClient
             .get()
             .uri("/api/couples/ticket")
             .header("Authorization", "Bearer " + jwtToken)
             .header("Accept", "application/json")
-            .header("X-Correlation-Id", correlationId)
             .retrieve()
             .onStatus(HttpStatusCode::is4xxClientError, response -> {
                 log.warn("Couples API client error: {}", response.statusCode());
@@ -50,12 +49,10 @@ public class CouplesApiClient {
             .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
                 .filter(throwable -> throwable instanceof WebClientResponseException))
             .doOnSuccess(response -> {
-                log.info("Successfully retrieved ticket info, correlation_id: {}, tickat: {}", 
-                        correlationId, response.getTicket());
+                log.info("Successfully retrieved ticket info, ticket: {}", response.getTicket());
             })
             .doOnError(error -> {
-                log.error("Failed to retrieve ticket info, correlation_id: {}, error: {}", 
-                         correlationId, error.getMessage());
+                log.error("Failed to retrieve ticket info, error: {}", error.getMessage());
             });
     }
     
