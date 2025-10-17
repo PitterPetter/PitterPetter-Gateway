@@ -215,7 +215,6 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                 Map<String, Object> ticketData = Map.of(
                     "coupleId", coupleId,
                     "ticket", ticketResponse.getTicket(),
-                    "isTodayTicket", ticketResponse.getIsTodayTicket(),
                     "lastSyncedAt", ticketResponse.getLastSyncedAt()
                 );
                 
@@ -243,16 +242,15 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             Map<String, Object> ticketMap = objectMapper.convertValue(ticketData, Map.class);
             
             int ticket = (Integer) ticketMap.get("ticket");
-            String isTodayTicket = (String) ticketMap.get("isTodayTicket");
             String redisCoupleId = String.valueOf(ticketMap.get("coupleId")); // coupleId를 string으로 변환
             
-            log.info("🎫 티켓 정보 - coupleId: {}, ticket: {}, isTodayTicket: {}", redisCoupleId, ticket, isTodayTicket);
+            log.info("🎫 티켓 정보 - coupleId: {}, ticket: {}", redisCoupleId, ticket);
             
             // JWT 토큰 추출 (비동기 API 호출용)
             String jwtToken = extractJwtTokenFromRequest(exchange);
             
             // 비즈니스 로직 처리
-            return processTicketLogic(coupleId, ticketMap, ticket, isTodayTicket, jwtToken, redisCoupleId)
+            return processTicketLogic(coupleId, ticketMap, ticket, jwtToken, redisCoupleId)
                 .map(updatedTicketMap -> {
                     // Redis 업데이트 (Write-Through 패턴이 자동으로 적용됨)
                     redisService.updateCoupleTicketInfo(coupleId, updatedTicketMap);
@@ -267,19 +265,19 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     
     /**
      * 티켓 비즈니스 로직 처리
-     * 케이스별로 티켓 상태를 검증하고 업데이트된 데이터 반환
+     * 티켓이 있으면 1 차감하고 허용, 없으면 차단
      * Write-Through 패턴으로 인해 별도의 API 호출이 불필요
      */
     private Mono<Map<String, Object>> processTicketLogic(String coupleId, Map<String, Object> ticketMap, 
-                                                         int ticket, String isTodayTicket, String jwtToken, String redisCoupleId) {
+                                                         int ticket, String jwtToken, String redisCoupleId) {
         
-        if ("true".equals(isTodayTicket)) {
-            // 케이스 1: isTodayTicket = "true" → false로 변경하고 허용
-            log.info("✅ 케이스 1: isTodayTicket을 false로 변경 - coupleId: {}", coupleId);
+        if (ticket > 0) {
+            // 티켓 1 차감하고 허용
+            log.info("✅ 티켓 1 차감 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
             
             Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
             updatedTicketMap.put("coupleId", redisCoupleId); // coupleId를 string으로 저장
-            updatedTicketMap.put("isTodayTicket", "false");
+            updatedTicketMap.put("ticket", ticket - 1);
             updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
             
             // Write-Through 패턴으로 자동 동기화됨 (별도 API 호출 불필요)
@@ -287,29 +285,10 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             
             return Mono.just(updatedTicketMap);
             
-        } else if ("false".equals(isTodayTicket)) {
-            if (ticket > 0) {
-                // 케이스 2: isTodayTicket = "false" + ticket > 0 → ticket 1 차감하고 허용
-                log.info("✅ 케이스 2: ticket 1 차감 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
-                
-                Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
-                updatedTicketMap.put("coupleId", redisCoupleId); // coupleId를 string으로 저장
-                updatedTicketMap.put("ticket", ticket - 1);
-                updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
-                
-                // Write-Through 패턴으로 자동 동기화됨 (별도 API 호출 불필요)
-                log.info("🔄 Write-Through 패턴으로 Auth Service 자동 동기화 예정 - coupleId: {}", coupleId);
-                
-                return Mono.just(updatedTicketMap);
-                
-            } else {
-                // 케이스 3: isTodayTicket = "false" + ticket = 0 → 차단
-                log.warn("❌ 케이스 3: 티켓 부족 - coupleId: {}, ticket: {}", coupleId, ticket);
-                return Mono.error(new RuntimeException("티켓이 없습니다."));
-            }
         } else {
-            log.error("🚨 잘못된 isTodayTicket 값 - coupleId: {}, isTodayTicket: {}", coupleId, isTodayTicket);
-            return Mono.error(new RuntimeException("잘못된 티켓 상태입니다."));
+            // 티켓 부족으로 차단
+            log.warn("❌ 티켓 부족 - coupleId: {}, ticket: {}", coupleId, ticket);
+            return Mono.error(new RuntimeException("티켓이 없습니다."));
         }
     }
     
