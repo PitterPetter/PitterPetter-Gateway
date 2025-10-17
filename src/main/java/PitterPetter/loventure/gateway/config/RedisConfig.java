@@ -109,13 +109,14 @@ public class RedisConfig {
     @Bean
     @Primary
     @Order(1)
-    public ReactiveStringRedisTemplate reactiveStringRedisTemplate(ReactiveRedisConnectionFactory connectionFactory) {
+    public ReactiveStringRedisTemplate reactiveStringRedisTemplate(RedisConnectionFactory connectionFactory) {
         log.info("🔤 ReactiveStringRedisTemplate Bean 생성 시작 - Gateway Rate Limiter용");
         log.info("   - ConnectionFactory 타입: {}", connectionFactory.getClass().getSimpleName());
         log.info("   - Redis 호스트: {}", redisHost);
         log.info("   - Redis 포트: {}", redisPort);
         
-        ReactiveStringRedisTemplate template = new ReactiveStringRedisTemplate(connectionFactory);
+        // LettuceConnectionFactory는 ReactiveRedisConnectionFactory를 구현함
+        ReactiveStringRedisTemplate template = new ReactiveStringRedisTemplate((ReactiveRedisConnectionFactory) connectionFactory);
         log.info("🔤 ReactiveStringRedisTemplate Bean 생성 완료 - Gateway Rate Limiter용");
         return template;
     }
