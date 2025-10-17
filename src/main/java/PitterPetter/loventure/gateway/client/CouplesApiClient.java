@@ -28,7 +28,7 @@ public class CouplesApiClient {
         
         return couplesWebClient
             .get()
-            .uri("/api/couples/ticket")
+            .uri("")
             .header("Authorization", "Bearer " + jwtToken)
             .header("Accept", "application/json")
             .retrieve()
