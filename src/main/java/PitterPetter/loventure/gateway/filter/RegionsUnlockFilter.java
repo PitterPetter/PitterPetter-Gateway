@@ -110,63 +110,6 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         }
     }
     
-    /**
-     * JWT 토큰에서 userId, coupleId 추출 (Base64 직접 디코딩)
-     */
-    private String[] extractUserInfoFromJwt(ServerWebExchange exchange) throws Exception {
-        log.debug("🔍 Authorization 헤더 확인 중");
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.error("❌ 유효하지 않은 Authorization 헤더 - header: {}", authHeader);
-            throw new IllegalArgumentException("유효하지 않은 Authorization 헤더");
-        }
-        
-        String token = authHeader.replace("Bearer ", "").trim();
-        log.debug("🔐 JWT 토큰 추출 완료 - token length: {}", token.length());
-        
-        // JWT 토큰 구조 검증 (header.payload.signature)
-        String[] parts = token.split("\\.");
-        if (parts.length != 3) {
-            log.error("❌ 유효하지 않은 JWT 토큰 형식 - parts length: {}", parts.length);
-            throw new IllegalArgumentException("유효하지 않은 JWT 토큰 형식");
-        }
-        
-        try {
-            // Payload Base64 디코딩하여 Claims 추출
-            log.debug("🔓 JWT payload 디코딩 시작");
-            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
-            @SuppressWarnings("unchecked")
-            Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
-            
-            // 전체 claims 로깅으로 디버깅 강화
-            log.debug("📋 JWT 전체 claims: {}", claims);
-            
-            String userId = (String) claims.get("userId");
-            String coupleId = (String) claims.get("coupleId");
-            
-            log.debug("📋 JWT claims 추출 - userId: {}, coupleId: {}", userId, coupleId);
-            
-            // 더 상세한 에러 로깅
-            if (userId == null) {
-                log.error("❌ JWT 토큰에 userId가 없습니다 - 전체 claims: {}", claims);
-                throw new IllegalArgumentException("JWT 토큰에 userId가 없습니다");
-            }
-            
-            if (coupleId == null) {
-                log.warn("⚠️ JWT 토큰에 coupleId가 없습니다 - 아직 커플 매칭이 안 된 상태일 수 있습니다");
-                log.warn("⚠️ 전체 claims: {}", claims);
-                log.warn("⚠️ 사용 가능한 필드들: {}", claims.keySet());
-                throw new IllegalArgumentException("아직 커플 매칭이 완료되지 않았습니다. regions/unlock 기능을 사용하려면 먼저 커플 매칭을 완료해주세요.");
-            }
-            
-            log.debug("✅ JWT 토큰 파싱 성공");
-            return new String[]{userId, coupleId};
-            
-        } catch (Exception e) {
-            log.error("❌ JWT 토큰 디코딩 실패: {}", e.getMessage());
-            throw new IllegalArgumentException("JWT 토큰 디코딩 실패: " + e.getMessage());
-        }
-    }
     
     /**
      * Request Body에서 regions 정보 추출
@@ -193,9 +136,22 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                     
                     @SuppressWarnings("unchecked")
                     Map<String, Object> bodyMap = objectMapper.readValue(body, Map.class);
-                    String regions = (String) bodyMap.get("regions");
+                    Object regionsObj = bodyMap.get("regions");
                     
-                    log.debug("📍 regions 값 추출: {}", regions);
+                    log.debug("📍 regions 값 추출 (타입: {}): {}", regionsObj != null ? regionsObj.getClass().getSimpleName() : "null", regionsObj);
+                    
+                    String regions;
+                    if (regionsObj instanceof String) {
+                        regions = (String) regionsObj;
+                    } else if (regionsObj instanceof java.util.List) {
+                        // ArrayList를 JSON 문자열로 변환
+                        regions = objectMapper.writeValueAsString(regionsObj);
+                        log.debug("📍 regions ArrayList를 JSON 문자열로 변환: {}", regions);
+                    } else {
+                        log.error("❌ regions 타입이 예상과 다름 - 타입: {}, 값: {}", 
+                                 regionsObj != null ? regionsObj.getClass().getSimpleName() : "null", regionsObj);
+                        return Mono.error(new IllegalArgumentException("regions 필드의 타입이 올바르지 않습니다"));
+                    }
                     
                     if (regions == null || regions.trim().isEmpty()) {
                         log.error("❌ regions 정보가 없습니다 - regions: {}", regions);
