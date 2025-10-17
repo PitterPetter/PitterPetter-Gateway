@@ -3,7 +3,6 @@ package PitterPetter.loventure.gateway.filter;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -236,7 +235,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                 // Redis 캐시 미스 시 Auth Service에서 데이터 가져오기
                 return fetchTicketFromAuthServiceAndCache(exchange, coupleId)
                     .flatMap(fetchedTicketData -> {
-                        if (fetchedTicketData != null && !fetchedTicketData.equals(Optional.empty())) {
+                        if (fetchedTicketData != null) {
                             log.info("✅ Auth Service에서 티켓 정보 조회 성공 - coupleId: {}", coupleId);
                             return processTicketLogicWithData(coupleId, fetchedTicketData, exchange);
                         } else {
@@ -320,7 +319,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             })
             .doOnError(error -> log.error("❌ Auth Service 티켓 정보 조회 실패 - coupleId: {}, error: {}", 
                                          coupleId, error.getMessage()))
-            .onErrorReturn(Optional.empty());
+            .onErrorReturn(new Object()); // 실제 객체를 반환하여 NullPointerException 해결
     }
     
     /**
