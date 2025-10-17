@@ -1,7 +1,6 @@
 package PitterPetter.loventure.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -45,6 +44,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getPath().toString();
         String method = exchange.getRequest().getMethod().toString();
         long startTime = System.currentTimeMillis();
+        String requestId = String.valueOf(startTime);
         
         // regions/unlock 경로가 아니면 필터 건너뛰기
         if (!path.equals(TARGET_PATH)) {
@@ -54,12 +54,23 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         log.info("🎫 RegionsUnlockFilter 시작 - {} : {} (요청 ID: {})", method, path, startTime);
         
         try {
-            // 1. JWT 토큰에서 userId, coupleId 추출
-            String[] userInfo = extractUserInfoFromJwt(exchange);
-            String userId = userInfo[0];
-            String coupleId = userInfo[1];
+            // 1. JwtAuthorizationFilter에서 파싱한 정보를 attributes에서 가져오기
+            log.debug("🔍 ServerWebExchange attributes에서 사용자 정보 조회 시작 (요청 ID: {})", requestId);
+            String userId = exchange.getAttribute("userId");
+            String coupleId = exchange.getAttribute("coupleId");
             
-            log.info("👤 사용자 정보 추출 완료 - userId: {}, coupleId: {}", userId, coupleId);
+            log.info("👤 사용자 정보 조회 완료 - userId: {}, coupleId: {} (요청 ID: {})", userId, coupleId, requestId);
+            
+            // 사용자 정보 검증
+            if (userId == null) {
+                log.error("❌ ServerWebExchange attributes에 userId가 없습니다 (요청 ID: {})", requestId);
+                throw new IllegalArgumentException("사용자 정보가 없습니다. 인증이 필요합니다.");
+            }
+            
+            if (coupleId == null) {
+                log.warn("⚠️ ServerWebExchange attributes에 coupleId가 없습니다 - 아직 커플 매칭이 안 된 상태일 수 있습니다 (요청 ID: {})", requestId);
+                throw new IllegalArgumentException("아직 커플 매칭이 완료되지 않았습니다. regions/unlock 기능을 사용하려면 먼저 커플 매칭을 완료해주세요.");
+            }
             
             // 2. Request Body에서 regions 정보 추출
             return extractRegionsFromBody(exchange)
@@ -92,42 +103,6 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         }
     }
     
-    /**
-     * JWT 토큰에서 userId, coupleId 추출 (Base64 직접 디코딩)
-     */
-    private String[] extractUserInfoFromJwt(ServerWebExchange exchange) throws Exception {
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("유효하지 않은 Authorization 헤더");
-        }
-        
-        String token = authHeader.replace("Bearer ", "").trim();
-        
-        // JWT 토큰 구조 검증 (header.payload.signature)
-        String[] parts = token.split("\\.");
-        if (parts.length != 3) {
-            throw new IllegalArgumentException("유효하지 않은 JWT 토큰 형식");
-        }
-        
-        try {
-            // Payload Base64 디코딩하여 Claims 추출
-            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
-            @SuppressWarnings("unchecked")
-            Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
-            
-            String userId = (String) claims.get("user_id");
-            String coupleId = (String) claims.get("couple_id");
-            
-            if (userId == null || coupleId == null) {
-                throw new IllegalArgumentException("JWT 토큰에 필요한 정보가 없습니다");
-            }
-            
-            return new String[]{userId, coupleId};
-            
-        } catch (Exception e) {
-            throw new IllegalArgumentException("JWT 토큰 디코딩 실패: " + e.getMessage());
-        }
-    }
     
     /**
      * Request Body에서 regions 정보 추출
