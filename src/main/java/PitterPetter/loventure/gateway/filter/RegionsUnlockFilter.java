@@ -54,6 +54,9 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         }
         
         log.info("🎫 RegionsUnlockFilter 시작 - method: {}, path: {} (요청 ID: {})", method, path, requestId);
+        log.debug("🌐 Request Headers: {}", exchange.getRequest().getHeaders());
+        log.debug("🔗 Request URI: {}", exchange.getRequest().getURI());
+        log.debug("📡 Remote Address: {}", exchange.getRequest().getRemoteAddress());
         
         try {
             // 1. JwtAuthorizationFilter에서 파싱한 정보를 attributes에서 가져오기
@@ -65,6 +68,8 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             
             log.info("👤 사용자 정보 조회 완료 - userId: {}, coupleId: {} (요청 ID: {})", userId, coupleId, requestId);
             log.debug("🔍 attributes 조회 결과 - userId 존재: {}, coupleId 존재: {}", userId != null, coupleId != null);
+            log.debug("📋 전체 attributes 키 목록: {}", exchange.getAttributes().keySet());
+            log.debug("🔍 attributes 상세 내용: {}", exchange.getAttributes());
             
             // 사용자 정보 검증
             if (userId == null) {
@@ -79,6 +84,8 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     
             // 2. Request Body에서 regions 정보 추출
             log.debug("📝 Request Body 파싱 시작 (요청 ID: {})", requestId);
+            log.debug("📊 Request Body Content-Type: {}", exchange.getRequest().getHeaders().getContentType());
+            log.debug("📏 Request Body Content-Length: {}", exchange.getRequest().getHeaders().getContentLength());
             return extractRegionsFromBody(exchange)
                 .flatMap(regions -> {
                     log.info("📍 지역 정보 추출 완료 - regions: {} (요청 ID: {})", regions, requestId);
@@ -110,63 +117,6 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         }
     }
     
-    /**
-     * JWT 토큰에서 userId, coupleId 추출 (Base64 직접 디코딩)
-     */
-    private String[] extractUserInfoFromJwt(ServerWebExchange exchange) throws Exception {
-        log.debug("🔍 Authorization 헤더 확인 중");
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.error("❌ 유효하지 않은 Authorization 헤더 - header: {}", authHeader);
-            throw new IllegalArgumentException("유효하지 않은 Authorization 헤더");
-        }
-        
-        String token = authHeader.replace("Bearer ", "").trim();
-        log.debug("🔐 JWT 토큰 추출 완료 - token length: {}", token.length());
-        
-        // JWT 토큰 구조 검증 (header.payload.signature)
-        String[] parts = token.split("\\.");
-        if (parts.length != 3) {
-            log.error("❌ 유효하지 않은 JWT 토큰 형식 - parts length: {}", parts.length);
-            throw new IllegalArgumentException("유효하지 않은 JWT 토큰 형식");
-        }
-        
-        try {
-            // Payload Base64 디코딩하여 Claims 추출
-            log.debug("🔓 JWT payload 디코딩 시작");
-            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
-            @SuppressWarnings("unchecked")
-            Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
-            
-            // 전체 claims 로깅으로 디버깅 강화
-            log.debug("📋 JWT 전체 claims: {}", claims);
-            
-            String userId = (String) claims.get("userId");
-            String coupleId = (String) claims.get("coupleId");
-            
-            log.debug("📋 JWT claims 추출 - userId: {}, coupleId: {}", userId, coupleId);
-            
-            // 더 상세한 에러 로깅
-            if (userId == null) {
-                log.error("❌ JWT 토큰에 userId가 없습니다 - 전체 claims: {}", claims);
-                throw new IllegalArgumentException("JWT 토큰에 userId가 없습니다");
-            }
-            
-            if (coupleId == null) {
-                log.warn("⚠️ JWT 토큰에 coupleId가 없습니다 - 아직 커플 매칭이 안 된 상태일 수 있습니다");
-                log.warn("⚠️ 전체 claims: {}", claims);
-                log.warn("⚠️ 사용 가능한 필드들: {}", claims.keySet());
-                throw new IllegalArgumentException("아직 커플 매칭이 완료되지 않았습니다. regions/unlock 기능을 사용하려면 먼저 커플 매칭을 완료해주세요.");
-            }
-            
-            log.debug("✅ JWT 토큰 파싱 성공");
-            return new String[]{userId, coupleId};
-            
-        } catch (Exception e) {
-            log.error("❌ JWT 토큰 디코딩 실패: {}", e.getMessage());
-            throw new IllegalArgumentException("JWT 토큰 디코딩 실패: " + e.getMessage());
-        }
-    }
     
     /**
      * Request Body에서 regions 정보 추출
@@ -177,6 +127,12 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             .collectList()
             .flatMap(dataBuffers -> {
                 log.debug("📦 DataBuffer 수집 완료 - count: {}", dataBuffers.size());
+                log.debug("📊 DataBuffer 상세 정보:");
+                for (int i = 0; i < dataBuffers.size(); i++) {
+                    DataBuffer buffer = dataBuffers.get(i);
+                    log.debug("  - DataBuffer[{}]: readableBytes={}, writableBytes={}", 
+                             i, buffer.readableByteCount(), buffer.writableByteCount());
+                }
                 byte[] bytes = new byte[dataBuffers.stream().mapToInt(DataBuffer::readableByteCount).sum()];
                 int offset = 0;
                 for (DataBuffer buffer : dataBuffers) {
@@ -186,23 +142,61 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                 }
                 
                 log.debug("📄 Request Body 크기: {} bytes", bytes.length);
+                log.debug("📊 Request Body 바이트 배열 상세: {}", java.util.Arrays.toString(bytes));
+                log.debug("🔍 Request Body 문자 인코딩 확인: {}", StandardCharsets.UTF_8.name());
                 
                 try {
                     String body = new String(bytes, StandardCharsets.UTF_8);
                     log.debug("📋 Request Body 내용: {}", body);
+                    log.debug("📊 Request Body 길이: {} characters", body.length());
+                    log.debug("🔍 Request Body 첫 100자: {}", body.length() > 100 ? body.substring(0, 100) + "..." : body);
                     
                     @SuppressWarnings("unchecked")
                     Map<String, Object> bodyMap = objectMapper.readValue(body, Map.class);
-                    String regions = (String) bodyMap.get("regions");
+                    log.debug("📋 Request Body JSON 파싱 완료 - bodyMap: {}", bodyMap);
+                    log.debug("🔍 bodyMap 키 목록: {}", bodyMap.keySet());
                     
-                    log.debug("📍 regions 값 추출: {}", regions);
+                    Object regionsObj = bodyMap.get("regions");
+                    log.debug("📍 regions 필드 존재 여부: {}", bodyMap.containsKey("regions"));
+                    
+                    log.debug("📍 regions 값 추출 (타입: {}): {}", regionsObj != null ? regionsObj.getClass().getSimpleName() : "null", regionsObj);
+                    log.debug("🔍 regions 객체 상세 정보:");
+                    if (regionsObj != null) {
+                        log.debug("  - 클래스: {}", regionsObj.getClass().getName());
+                        log.debug("  - toString(): {}", regionsObj.toString());
+                        if (regionsObj instanceof java.util.List) {
+                            java.util.List<?> list = (java.util.List<?>) regionsObj;
+                            log.debug("  - List 크기: {}", list.size());
+                            log.debug("  - List 내용: {}", list);
+                        }
+                    }
+                    
+                    String regions;
+                    if (regionsObj instanceof String) {
+                        regions = (String) regionsObj;
+                        log.debug("✅ regions String 타입 확인 - 길이: {}", regions.length());
+                    } else if (regionsObj instanceof java.util.List) {
+                        // ArrayList를 JSON 문자열로 변환
+                        log.debug("🔄 regions ArrayList를 JSON 문자열로 변환 시작");
+                        regions = objectMapper.writeValueAsString(regionsObj);
+                        log.debug("📍 regions ArrayList를 JSON 문자열로 변환: {}", regions);
+                        log.debug("✅ 변환 완료 - JSON 길이: {}", regions.length());
+                    } else {
+                        log.error("❌ regions 타입이 예상과 다름 - 타입: {}, 값: {}", 
+                                 regionsObj != null ? regionsObj.getClass().getSimpleName() : "null", regionsObj);
+                        log.error("🔍 지원되는 타입: String, List");
+                        return Mono.error(new IllegalArgumentException("regions 필드의 타입이 올바르지 않습니다"));
+                    }
                     
                     if (regions == null || regions.trim().isEmpty()) {
                         log.error("❌ regions 정보가 없습니다 - regions: {}", regions);
+                        log.error("🔍 regions null 여부: {}", regions == null);
+                        log.error("🔍 regions 빈 문자열 여부: {}", regions != null && regions.trim().isEmpty());
                         return Mono.error(new IllegalArgumentException("regions 정보가 없습니다"));
                     }
                     
-                    log.debug("✅ regions 정보 추출 성공");
+                    log.debug("✅ regions 정보 추출 성공 - 최종 regions: {}", regions);
+                    log.debug("📊 regions 최종 길이: {} characters", regions.length());
                     return Mono.just(regions);
                 } catch (Exception e) {
                     log.error("❌ Request Body 파싱 실패: {}", e.getMessage());
@@ -218,14 +212,30 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
      */
     private Mono<Boolean> validateTicketAndProcess(ServerWebExchange exchange, String coupleId, String regions) {
         log.info("🔍 티켓 검증 시작 - coupleId: {}, regions: {}", coupleId, regions);
+        log.debug("📊 티켓 검증 파라미터 상세:");
+        log.debug("  - coupleId 타입: {}, 길이: {}", coupleId.getClass().getSimpleName(), coupleId.length());
+        log.debug("  - regions 타입: {}, 길이: {}", regions.getClass().getSimpleName(), regions.length());
+        log.debug("  - regions 내용: {}", regions);
         
         try {
             // Redis에서 티켓 정보 조회 (동기식)
             log.debug("🔍 Redis에서 티켓 정보 조회 시작 - coupleId: {}", coupleId);
+            log.debug("📊 Redis 조회 전 상태:");
+            log.debug("  - coupleId: {}", coupleId);
+            log.debug("  - Redis 키 예상값: coupleId:{}", coupleId);
+            
+            long redisStartTime = System.currentTimeMillis();
             Object ticketData = redisService.getCoupleTicketInfo(coupleId);
+            long redisQueryTime = System.currentTimeMillis() - redisStartTime;
+            
+            log.debug("⏱️ Redis 조회 시간: {}ms", redisQueryTime);
+            log.debug("📊 Redis 조회 결과: {}", ticketData != null ? "데이터 존재" : "데이터 없음");
             
             if (ticketData == null) {
                 log.warn("❌ Redis 캐시 미스 - coupleId: {}", coupleId);
+                log.warn("📊 Redis 캐시 미스 상세:");
+                log.warn("  - 조회 시간: {}ms", redisQueryTime);
+                log.warn("  - Redis 키: coupleId:{}", coupleId);
                 log.info("🔄 Auth Service에서 티켓 정보 조회 시작 - coupleId: {}", coupleId);
                 // Redis 캐시 미스 시 Auth Service에서 데이터 가져오기
                 return fetchTicketFromAuthServiceAndCache(exchange, coupleId)
@@ -241,6 +251,10 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             }
             
             log.info("✅ Redis 캐시 히트 - coupleId: {}", coupleId);
+            log.info("📊 Redis 캐시 히트 상세:");
+            log.info("  - 조회 시간: {}ms", redisQueryTime);
+            log.info("  - 데이터 타입: {}", ticketData.getClass().getSimpleName());
+            log.debug("  - 데이터 내용: {}", ticketData);
             // Redis에 데이터가 있는 경우 기존 로직 처리
             return processTicketLogicWithData(coupleId, ticketData, exchange);
                 
@@ -256,34 +270,55 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
      */
     private Mono<Object> fetchTicketFromAuthServiceAndCache(ServerWebExchange exchange, String coupleId) {
         log.info("🔄 Auth Service에서 티켓 정보 조회 시작 - coupleId: {}", coupleId);
+        log.debug("📊 Auth Service 호출 상세:");
+        log.debug("  - coupleId: {}", coupleId);
+        log.debug("  - 호출 시간: {}", java.time.OffsetDateTime.now());
         
         String jwtToken = extractJwtTokenFromRequest(exchange);
+        log.debug("🔐 JWT 토큰 추출 결과:");
+        log.debug("  - 토큰 존재: {}", jwtToken != null);
+        log.debug("  - 토큰 길이: {}", jwtToken != null ? jwtToken.length() : 0);
+        
         if (jwtToken == null) {
             log.error("❌ JWT 토큰이 없어서 Auth Service 호출 불가 - coupleId: {}", coupleId);
+            log.error("🔍 Authorization 헤더 확인: {}", exchange.getRequest().getHeaders().getFirst("Authorization"));
             return Mono.empty();
         }
         
         log.debug("🔐 JWT 토큰 확인 완료 - token length: {}", jwtToken.length());
         log.debug("📡 CouplesApiClient.getTicketInfo 호출 시작");
+        log.debug("📊 API 호출 상세:");
+        log.debug("  - JWT 토큰 앞 20자: {}", jwtToken.substring(0, Math.min(20, jwtToken.length())));
+        log.debug("  - JWT 토큰 뒤 20자: {}", jwtToken.substring(Math.max(0, jwtToken.length() - 20)));
         
         return couplesApiClient.getTicketInfo(jwtToken)
             .map(ticketResponse -> {
                 log.debug("📋 TicketResponse 수신 - ticket: {}, lastSyncedAt: {}", 
                          ticketResponse.getTicket(), ticketResponse.getLastSyncedAt());
+                log.debug("📊 TicketResponse 상세 정보:");
+                log.debug("  - ticket 타입: {}", ticketResponse.getTicket().getClass().getSimpleName());
+                log.debug("  - lastSyncedAt 타입: {}", ticketResponse.getLastSyncedAt().getClass().getSimpleName());
+                log.debug("  - TicketResponse 전체: {}", ticketResponse);
                 
                 // TicketResponse를 Map으로 변환
+                log.debug("🔄 TicketResponse를 Map으로 변환 시작");
                 Map<String, Object> ticketData = Map.of(
                     "coupleId", coupleId,
                     "ticket", ticketResponse.getTicket(),
                     "lastSyncedAt", ticketResponse.getLastSyncedAt()
                 );
+                log.debug("📊 변환된 ticketData: {}", ticketData);
                 
                 log.info("✅ Auth Service에서 티켓 정보 조회 성공 - coupleId: {}, ticket: {}", 
                         coupleId, ticketResponse.getTicket());
                 
                 // Redis에 캐싱 (Write-Through 패턴 적용)
                 log.debug("💾 Redis에 티켓 정보 캐싱 시작 - coupleId: {}", coupleId);
+                log.debug("📊 캐싱할 데이터: {}", ticketData);
+                long cacheStartTime = System.currentTimeMillis();
                 redisService.updateCoupleTicketInfo(coupleId, ticketData);
+                long cacheTime = System.currentTimeMillis() - cacheStartTime;
+                log.debug("⏱️ Redis 캐싱 시간: {}ms", cacheTime);
                 
                 return (Object) ticketData;
             })
@@ -298,18 +333,28 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
      */
     private Mono<Boolean> processTicketLogicWithData(String coupleId, Object ticketData, ServerWebExchange exchange) {
         log.debug("🔍 티켓 데이터 처리 시작 - coupleId: {}", coupleId);
+        log.debug("📊 입력 데이터 상세:");
+        log.debug("  - coupleId: {}", coupleId);
+        log.debug("  - ticketData 타입: {}", ticketData.getClass().getSimpleName());
+        log.debug("  - ticketData 내용: {}", ticketData);
         
         try {
             // JSON 파싱하여 티켓 정보 추출
             log.debug("📋 티켓 데이터 JSON 파싱 시작");
+            log.debug("📊 파싱 전 ticketData: {}", ticketData);
             @SuppressWarnings("unchecked")
             Map<String, Object> ticketMap = objectMapper.convertValue(ticketData, Map.class);
+            log.debug("📊 파싱 후 ticketMap: {}", ticketMap);
             
             int ticket = (Integer) ticketMap.get("ticket");
             String redisCoupleId = String.valueOf(ticketMap.get("coupleId")); // coupleId를 string으로 변환
             
             log.info("🎫 티켓 정보 - coupleId: {}, ticket: {}", redisCoupleId, ticket);
             log.debug("📊 티켓 상세 정보 - ticketMap: {}", ticketMap);
+            log.debug("📊 티켓 필드 상세:");
+            log.debug("  - ticket 타입: {}, 값: {}", ticketMap.get("ticket").getClass().getSimpleName(), ticket);
+            log.debug("  - coupleId 타입: {}, 값: {}", ticketMap.get("coupleId").getClass().getSimpleName(), redisCoupleId);
+            log.debug("  - lastSyncedAt: {}", ticketMap.get("lastSyncedAt"));
             
             // JWT 토큰 추출 (비동기 API 호출용)
             String jwtToken = extractJwtTokenFromRequest(exchange);
@@ -341,17 +386,35 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                                                          int ticket, String jwtToken, String redisCoupleId) {
         
         log.debug("🎫 티켓 비즈니스 로직 검증 - ticket: {}", ticket);
+        log.debug("📊 비즈니스 로직 입력 파라미터:");
+        log.debug("  - coupleId: {}", coupleId);
+        log.debug("  - ticket: {} (타입: {})", ticket, ticket.getClass().getSimpleName());
+        log.debug("  - redisCoupleId: {}", redisCoupleId);
+        log.debug("  - jwtToken 존재: {}", jwtToken != null);
         
         if (ticket > 0) {
             // 티켓 1 차감하고 허용
             log.info("✅ 티켓 1 차감 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
+            log.debug("📊 티켓 차감 상세:");
+            log.debug("  - 현재 티켓: {}", ticket);
+            log.debug("  - 차감 후 티켓: {}", ticket - 1);
+            log.debug("  - 차감량: 1");
             
             Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
+            log.debug("🔄 티켓 정보 업데이트 시작");
+            log.debug("📊 업데이트 전 ticketMap: {}", ticketMap);
+            
             updatedTicketMap.put("coupleId", redisCoupleId); // coupleId를 string으로 저장
             updatedTicketMap.put("ticket", ticket - 1);
             updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
             
+            log.debug("📊 업데이트 후 updatedTicketMap: {}", updatedTicketMap);
+            
             log.debug("📊 업데이트된 티켓 정보 - updatedTicketMap: {}", updatedTicketMap);
+            log.debug("📊 업데이트 상세:");
+            log.debug("  - coupleId: {} → {}", ticketMap.get("coupleId"), updatedTicketMap.get("coupleId"));
+            log.debug("  - ticket: {} → {}", ticketMap.get("ticket"), updatedTicketMap.get("ticket"));
+            log.debug("  - lastSyncedAt: {} → {}", ticketMap.get("lastSyncedAt"), updatedTicketMap.get("lastSyncedAt"));
             
             // Write-Through 패턴으로 자동 동기화됨 (별도 API 호출 불필요)
             log.info("🔄 Write-Through 패턴으로 Auth Service 자동 동기화 예정 - coupleId: {}", coupleId);
@@ -362,6 +425,10 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             // 티켓 부족으로 차단
             log.warn("❌ 티켓 부족 - coupleId: {}, ticket: {}", coupleId, ticket);
             log.debug("🚫 regions/unlock 요청 차단 - 티켓 부족");
+            log.debug("📊 티켓 부족 상세:");
+            log.debug("  - 현재 티켓: {}", ticket);
+            log.debug("  - 필요한 티켓: 1");
+            log.debug("  - 부족한 티켓: {}", 1 - ticket);
             return Mono.error(new RuntimeException("티켓이 없습니다."));
         }
     }
@@ -374,10 +441,19 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
      * Authorization 헤더에서 Bearer 토큰을 추출 (Base64 디코딩 방식)
      */
     private String extractJwtTokenFromRequest(ServerWebExchange exchange) {
+        log.debug("🔐 JWT 토큰 추출 시작");
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        log.debug("📊 Authorization 헤더:");
+        log.debug("  - 존재 여부: {}", authHeader != null);
+        log.debug("  - 내용: {}", authHeader);
+        
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.replace("Bearer ", "").trim();
+            String token = authHeader.replace("Bearer ", "").trim();
+            log.debug("✅ JWT 토큰 추출 성공 - 길이: {}", token.length());
+            return token;
         }
+        
+        log.debug("❌ JWT 토큰 추출 실패 - Bearer 토큰 없음");
         return null;
     }
     
