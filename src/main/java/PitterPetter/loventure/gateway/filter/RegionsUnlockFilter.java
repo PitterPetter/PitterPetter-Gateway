@@ -128,21 +128,22 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             // 전체 claims 로깅으로 디버깅 강화
             log.debug("📋 JWT 전체 claims: {}", claims);
             
-            String userId = (String) claims.get("user_id");
-            String coupleId = (String) claims.get("couple_id");
+            String userId = (String) claims.get("userId");
+            String coupleId = (String) claims.get("coupleId");
             
             log.debug("📋 JWT claims 추출 - userId: {}, coupleId: {}", userId, coupleId);
             
             // 더 상세한 에러 로깅
             if (userId == null) {
-                log.error("❌ JWT 토큰에 user_id가 없습니다 - 전체 claims: {}", claims);
-                throw new IllegalArgumentException("JWT 토큰에 user_id가 없습니다");
+                log.error("❌ JWT 토큰에 userId가 없습니다 - 전체 claims: {}", claims);
+                throw new IllegalArgumentException("JWT 토큰에 userId가 없습니다");
             }
             
             if (coupleId == null) {
-                log.error("❌ JWT 토큰에 couple_id가 없습니다 - 전체 claims: {}", claims);
-                log.error("❌ 사용 가능한 필드들: {}", claims.keySet());
-                throw new IllegalArgumentException("JWT 토큰에 couple_id가 없습니다");
+                log.warn("⚠️ JWT 토큰에 coupleId가 없습니다 - 아직 커플 매칭이 안 된 상태일 수 있습니다");
+                log.warn("⚠️ 전체 claims: {}", claims);
+                log.warn("⚠️ 사용 가능한 필드들: {}", claims.keySet());
+                throw new IllegalArgumentException("아직 커플 매칭이 완료되지 않았습니다. regions/unlock 기능을 사용하려면 먼저 커플 매칭을 완료해주세요.");
             }
             
             log.debug("✅ JWT 토큰 파싱 성공");
