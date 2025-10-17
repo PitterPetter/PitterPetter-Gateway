@@ -17,6 +17,9 @@ public class TicketResponse {
     @JsonProperty("ticket")
     private Integer ticket;
     
+    @JsonProperty("isTodayTicket")
+    private String isTodayTicket;
+    
     @JsonProperty("lastSyncedAt")
     private String lastSyncedAt;
 }
