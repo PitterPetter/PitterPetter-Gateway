@@ -137,38 +137,64 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
 
                 try {
                     String body = new String(bytes, StandardCharsets.UTF_8);
-                    log.debug("📋 Request Body 내용: {}", body);
+                    log.info("📋 Request Body 원본 내용: {}", body);
+                    log.info("📊 Request Body 길이: {} characters", body.length());
+                    log.info("🔍 Request Body 첫 200자: {}", body.length() > 200 ? body.substring(0, 200) + "..." : body);
 
                     // --- case 1: JSON 배열 ---
                     if (body.trim().startsWith("[")) {
-                        log.debug("🔍 Body가 JSON 배열로 감지됨");
+                        log.info("🔍 Case 1: Body가 JSON 배열로 감지됨");
+                        log.info("📊 배열 시작 확인: body.trim().startsWith(\"[\") = {}", body.trim().startsWith("["));
                         java.util.List<?> list = objectMapper.readValue(body, java.util.List.class);
-                        log.debug("✅ 배열 파싱 완료 - {} items", list.size());
+                        log.info("✅ 배열 파싱 완료 - {} items", list.size());
+                        log.info("📋 배열 내용: {}", list);
                         String regions = objectMapper.writeValueAsString(list);
-                        log.debug("📍 regions(JSON): {}", regions);
+                        log.info("📍 regions(JSON): {}", regions);
                         return Mono.just(regions);
                     }
 
                     // --- case 2: JSON 객체 ---
+                    log.info("🔍 Case 2: JSON 객체로 처리 시작");
                     Map<String, Object> bodyMap = objectMapper.readValue(body, Map.class);
+                    log.info("📋 bodyMap 전체 내용: {}", bodyMap);
+                    log.info("📊 bodyMap 키 목록: {}", bodyMap.keySet());
+                    
                     Object regionsObj = bodyMap.get("regions");
-                    if (regionsObj == null)
+                    log.info("📍 regionsObj 존재 여부: {}", regionsObj != null);
+                    log.info("📍 regionsObj 타입: {}", regionsObj != null ? regionsObj.getClass().getName() : "null");
+                    log.info("📍 regionsObj 값: {}", regionsObj);
+                    
+                    if (regionsObj == null) {
+                        log.error("❌ regions 필드가 없습니다 - bodyMap: {}", bodyMap);
                         return Mono.error(new IllegalArgumentException("Request body에 'regions' 필드가 없습니다."));
+                    }
 
                     String regions;
+                    log.info("🔍 regionsObj 타입 체크 시작");
+                    log.info("📊 instanceof java.util.List: {}", regionsObj instanceof java.util.List);
+                    log.info("📊 instanceof String: {}", regionsObj instanceof String);
+                    
                     if (regionsObj instanceof java.util.List) {
+                        log.info("✅ ArrayList 감지 - JSON 문자열로 변환 시작");
                         regions = objectMapper.writeValueAsString(regionsObj);
+                        log.info("✅ ArrayList → JSON 문자열 변환 완료: {}", regions);
                     } else if (regionsObj instanceof String) {
+                        log.info("✅ String 감지 - 그대로 사용");
                         regions = (String) regionsObj;
+                        log.info("✅ String 그대로 사용: {}", regions);
                     } else {
+                        log.error("❌ 지원되지 않는 타입 - 타입: {}, 값: {}", regionsObj.getClass().getName(), regionsObj);
                         return Mono.error(new IllegalArgumentException("regions 필드의 타입이 올바르지 않습니다."));
                     }
 
-                    log.debug("✅ regions 추출 완료: {}", regions);
+                    log.info("✅ regions 최종 추출 완료: {}", regions);
+                    log.info("📊 regions 최종 타입: {}", regions.getClass().getSimpleName());
                     return Mono.just(regions);
 
                 } catch (Exception e) {
-                    log.error("❌ Request Body 파싱 실패: {}", e.getMessage(), e);
+                    log.error("❌ Request Body 파싱 실패: {}", e.getMessage());
+                    log.error("❌ 에러 스택 트레이스:", e);
+                    log.error("❌ Request Body 원본: {}", new String(bytes, StandardCharsets.UTF_8));
                     return Mono.error(new IllegalArgumentException("Request Body 파싱 실패: " + e.getMessage()));
                 }
             });
