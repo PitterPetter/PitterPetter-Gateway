@@ -319,7 +319,11 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             })
             .doOnError(error -> log.error("❌ Auth Service 티켓 정보 조회 실패 - coupleId: {}, error: {}", 
                                          coupleId, error.getMessage()))
-            .onErrorReturn(new Object()); // 실제 객체를 반환하여 NullPointerException 해결
+                .onErrorResume(error -> {
+                    log.error("⚠️ Auth Service 통신 실패로 티켓 데이터 없음 (coupleId={})", coupleId);
+                    return Mono.empty();
+                });
+
     }
     
     /**
