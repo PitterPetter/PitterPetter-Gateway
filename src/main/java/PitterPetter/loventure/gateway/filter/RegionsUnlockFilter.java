@@ -56,14 +56,27 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         log.info("🎫 RegionsUnlockFilter 시작 - method: {}, path: {} (요청 ID: {})", method, path, requestId);
         
         try {
-            // 1. JWT 토큰에서 userId, coupleId 추출
-            log.debug("🔐 JWT 토큰 파싱 시작 (요청 ID: {})", requestId);
-            String[] userInfo = extractUserInfoFromJwt(exchange);
-            String userId = userInfo[0];
-            String coupleId = userInfo[1];
+            // 1. JwtAuthorizationFilter에서 파싱한 정보를 attributes에서 가져오기
+            log.debug("🔍 ServerWebExchange attributes에서 사용자 정보 조회 시작 (요청 ID: {})", requestId);
+            log.debug("📋 현재 attributes 상태: {}", exchange.getAttributes());
             
-            log.info("👤 사용자 정보 추출 완료 - userId: {}, coupleId: {} (요청 ID: {})", userId, coupleId, requestId);
+            String userId = exchange.getAttribute("userId");
+            String coupleId = exchange.getAttribute("coupleId");
             
+            log.info("👤 사용자 정보 조회 완료 - userId: {}, coupleId: {} (요청 ID: {})", userId, coupleId, requestId);
+            log.debug("🔍 attributes 조회 결과 - userId 존재: {}, coupleId 존재: {}", userId != null, coupleId != null);
+            
+            // 사용자 정보 검증
+            if (userId == null) {
+                log.error("❌ ServerWebExchange attributes에 userId가 없습니다 (요청 ID: {})", requestId);
+                throw new IllegalArgumentException("사용자 정보가 없습니다. 인증이 필요합니다.");
+            }
+            
+            if (coupleId == null) {
+                log.warn("⚠️ ServerWebExchange attributes에 coupleId가 없습니다 - 아직 커플 매칭이 안 된 상태일 수 있습니다 (요청 ID: {})", requestId);
+                throw new IllegalArgumentException("아직 커플 매칭이 완료되지 않았습니다. regions/unlock 기능을 사용하려면 먼저 커플 매칭을 완료해주세요.");
+            }
+    
             // 2. Request Body에서 regions 정보 추출
             log.debug("📝 Request Body 파싱 시작 (요청 ID: {})", requestId);
             return extractRegionsFromBody(exchange)

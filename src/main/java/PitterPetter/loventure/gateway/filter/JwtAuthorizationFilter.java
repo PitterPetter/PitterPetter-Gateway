@@ -57,6 +57,13 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		String coupleId = (String) claims.get("coupleId"); // JWT 토큰에서 coupleId 클레임 추출
 		log.info("FilterChain에서 토큰 추출 결과 - userId : {}, coupleId : {}", userId, coupleId);
 		
+		// 3. 파싱된 정보를 ServerWebExchange attributes에 저장
+		log.debug("💾 ServerWebExchange attributes에 사용자 정보 저장 시작");
+		exchange.getAttributes().put("userId", userId);
+		exchange.getAttributes().put("coupleId", coupleId);
+		log.info("✅ 사용자 정보를 ServerWebExchange attributes에 저장 완료 - userId: {}, coupleId: {}", userId, coupleId);
+		log.debug("📋 저장된 attributes: {}", exchange.getAttributes());
+		
 		// 4. 인가 성공 시 라우팅 정보 로그 - 실제 라우팅 후 로그
 		return chain.filter(exchange).doFinally(signalType -> {
 			// 라우팅이 완료된 후 실제 타겟 URI 로그 출력
