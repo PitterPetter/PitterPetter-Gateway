@@ -3,12 +3,15 @@ package PitterPetter.loventure.gateway.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -160,11 +163,15 @@ public class RedisService {
     /**
      * coupleId로 티켓 정보 업데이트 (동기식) - Regions Unlock 필터용
      * Key 형식: coupleId:{coupleId}
+     * Write-Through 패턴 적용: Redis 저장 후 Stream 이벤트 발행
      */
     public void updateCoupleTicketInfo(String coupleId, Object ticketData) {
         String key = "coupleId:" + coupleId;
         setValue(key, ticketData);
         log.info("🎫 Regions Unlock - Redis 업데이트 - Key: {}, Value: {}", key, ticketData);
+        
+        // Write-Through 패턴: Redis Stream에 동기화 이벤트 발행
+        publishSyncEventSync(coupleId, ticketData);
     }
     
     /**
@@ -175,6 +182,110 @@ public class RedisService {
         String key = "coupleId:" + coupleId;
         return setValueReactive(key, ticketData)
             .doOnSuccess(result -> log.info("🎫 Regions Unlock - Redis 업데이트 (Reactive) - Key: {}, Value: {}", key, ticketData));
+    }
+    
+    // ========== Redis Write-Through 패턴 구현 ==========
+    
+    /**
+     * Write-Through 패턴으로 티켓 정보 업데이트
+     * Redis에 데이터를 저장하고 동시에 Redis Stream에 동기화 이벤트 발행
+     */
+    public Mono<Boolean> updateCoupleTicketInfoWriteThrough(String coupleId, Object ticketData) {
+        String key = "coupleId:" + coupleId;
+        long startTime = System.currentTimeMillis();
+        
+        log.info("🔄 Write-Through 패턴 시작 - coupleId: {} (작업 ID: {})", coupleId, startTime);
+        
+        // 1. Redis에 데이터 저장
+        return reactiveRedisTemplate.opsForValue()
+            .set(key, ticketData)
+            .flatMap(result -> {
+                if (result) {
+                    log.info("✅ Redis 저장 성공 - Key: {}, Value: {}", key, ticketData);
+                    // 2. Redis Stream에 동기화 이벤트 발행
+                    return publishSyncEvent(coupleId, ticketData);
+                } else {
+                    log.error("❌ Redis 저장 실패 - Key: {}", key);
+                    return Mono.just(false);
+                }
+            })
+            .doOnSuccess(success -> {
+                long processingTime = System.currentTimeMillis() - startTime;
+                if (success) {
+                    log.info("🎉 Write-Through 패턴 완료 - coupleId: {} (처리시간: {}ms, 작업 ID: {})", coupleId, processingTime, startTime);
+                } else {
+                    log.error("❌ Write-Through 패턴 실패 - coupleId: {} (처리시간: {}ms, 작업 ID: {})", coupleId, processingTime, startTime);
+                }
+            })
+            .doOnError(error -> {
+                long processingTime = System.currentTimeMillis() - startTime;
+                log.error("🚨 Write-Through 패턴 에러 - coupleId: {} (처리시간: {}ms, 작업 ID: {}), error: {}", coupleId, processingTime, startTime, error.getMessage());
+            });
+    }
+    
+    /**
+     * Redis Stream에 동기화 이벤트 발행
+     * Auth Service에서 구독하여 DB 동기화를 수행
+     */
+    private Mono<Boolean> publishSyncEvent(String coupleId, Object ticketData) {
+        try {
+            Map<String, Object> event = Map.of(
+                "coupleId", coupleId,
+                "ticketData", ticketData,
+                "timestamp", System.currentTimeMillis(),
+                "source", "gateway",
+                "eventType", "ticket-update"
+            );
+            
+            log.info("📡 Redis Stream 이벤트 발행 - coupleId: {}, eventType: ticket-update", coupleId);
+            
+            return reactiveRedisTemplate.opsForStream()
+                .add("ticket-sync-stream", event)
+                .map(RecordId::getValue)
+                .map(Objects::nonNull)
+                .doOnSuccess(success -> {
+                    if (success) {
+                        log.info("✅ Redis Stream 이벤트 발행 성공 - coupleId: {}", coupleId);
+                    } else {
+                        log.error("❌ Redis Stream 이벤트 발행 실패 - coupleId: {}", coupleId);
+                    }
+                })
+                .doOnError(error -> log.error("🚨 Redis Stream 이벤트 발행 에러 - coupleId: {}, error: {}", coupleId, error.getMessage()));
+                
+        } catch (Exception e) {
+            log.error("🚨 Redis Stream 이벤트 생성 에러 - coupleId: {}, error: {}", coupleId, e.getMessage());
+            return Mono.just(false);
+        }
+    }
+    
+    /**
+     * Redis Stream에 동기화 이벤트 발행 (동기식)
+     * 동기식 메서드에서도 사용할 수 있도록 제공
+     */
+    public void publishSyncEventSync(String coupleId, Object ticketData) {
+        try {
+            Map<String, Object> event = Map.of(
+                "coupleId", coupleId,
+                "ticketData", ticketData,
+                "timestamp", System.currentTimeMillis(),
+                "source", "gateway",
+                "eventType", "ticket-update"
+            );
+            
+            log.info("📡 Redis Stream 이벤트 발행 (동기식) - coupleId: {}, eventType: ticket-update", coupleId);
+            
+            // 동기식으로 Redis Stream에 이벤트 추가
+            RecordId recordId = redisTemplate.opsForStream().add("ticket-sync-stream", event);
+            
+            if (recordId != null) {
+                log.info("✅ Redis Stream 이벤트 발행 성공 (동기식) - coupleId: {}, recordId: {}", coupleId, recordId.getValue());
+            } else {
+                log.error("❌ Redis Stream 이벤트 발행 실패 (동기식) - coupleId: {}", coupleId);
+            }
+            
+        } catch (Exception e) {
+            log.error("🚨 Redis Stream 이벤트 발행 에러 (동기식) - coupleId: {}, error: {}", coupleId, e.getMessage());
+        }
     }
     
     /**
