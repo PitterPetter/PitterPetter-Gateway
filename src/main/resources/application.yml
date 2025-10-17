@@ -19,12 +19,18 @@ redis:
 # 로깅 설정
 logging:
   level:
+    # Regions Unlock 필터 관련 로깅
+    PitterPetter.loventure.gateway.filter.RegionsUnlockFilter: INFO
+    
     # Redis 관련 로깅
     PitterPetter.loventure.gateway.config.RedisConfig: INFO
     PitterPetter.loventure.gateway.config.RedisConnectionLogger: INFO
     PitterPetter.loventure.gateway.controller.RedisHealthController: INFO
     PitterPetter.loventure.gateway.service.RedisService: INFO
     PitterPetter.loventure.gateway.scheduler.RedisDailyResetScheduler: INFO
+    
+    # Couples API Client 로깅
+    PitterPetter.loventure.gateway.client.CouplesApiClient: INFO
     
     # Spring Redis 로깅
     org.springframework.data.redis: INFO
