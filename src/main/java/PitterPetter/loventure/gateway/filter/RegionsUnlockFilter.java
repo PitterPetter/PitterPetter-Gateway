@@ -1,6 +1,7 @@
 package PitterPetter.loventure.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -19,8 +20,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import PitterPetter.loventure.gateway.client.CouplesApiClient;
 import PitterPetter.loventure.gateway.service.RedisService;
-import PitterPetter.loventure.gateway.util.JwtUtil;
-import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
@@ -34,7 +33,6 @@ import reactor.core.publisher.Mono;
 public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     
     private static final Logger log = LoggerFactory.getLogger(RegionsUnlockFilter.class);
-    private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
     private final RedisService redisService;
     private final CouplesApiClient couplesApiClient;
@@ -95,7 +93,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     }
     
     /**
-     * JWT 토큰에서 userId, coupleId 추출
+     * JWT 토큰에서 userId, coupleId 추출 (Base64 직접 디코딩)
      */
     private String[] extractUserInfoFromJwt(ServerWebExchange exchange) throws Exception {
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
@@ -104,19 +102,31 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         }
         
         String token = authHeader.replace("Bearer ", "").trim();
-        if (!jwtUtil.isValidToken(token)) {
-            throw new IllegalArgumentException("유효하지 않은 JWT 토큰");
+        
+        // JWT 토큰 구조 검증 (header.payload.signature)
+        String[] parts = token.split("\\.");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("유효하지 않은 JWT 토큰 형식");
         }
         
-        Claims claims = jwtUtil.extractClaims(token);
-        String userId = claims.get("user_id", String.class);
-        String coupleId = claims.get("couple_id", String.class);
-        
-        if (userId == null || coupleId == null) {
-            throw new IllegalArgumentException("JWT 토큰에 필요한 정보가 없습니다");
+        try {
+            // Payload Base64 디코딩하여 Claims 추출
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
+            
+            String userId = (String) claims.get("user_id");
+            String coupleId = (String) claims.get("couple_id");
+            
+            if (userId == null || coupleId == null) {
+                throw new IllegalArgumentException("JWT 토큰에 필요한 정보가 없습니다");
+            }
+            
+            return new String[]{userId, coupleId};
+            
+        } catch (Exception e) {
+            throw new IllegalArgumentException("JWT 토큰 디코딩 실패: " + e.getMessage());
         }
-        
-        return new String[]{userId, coupleId};
     }
     
     /**
@@ -310,7 +320,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     
     /**
      * 현재 요청에서 JWT 토큰 추출
-     * Authorization 헤더에서 Bearer 토큰을 추출
+     * Authorization 헤더에서 Bearer 토큰을 추출 (Base64 디코딩 방식)
      */
     private String extractJwtTokenFromRequest(ServerWebExchange exchange) {
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
