@@ -9,6 +9,7 @@ import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
@@ -63,6 +64,25 @@ public class RedisConfig {
     }
 
     @Bean
+    public ReactiveRedisConnectionFactory reactiveRedisConnectionFactory() {
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        config.setHostName(redisHost);
+        config.setPort(redisPort);
+        config.setDatabase(redisDatabase);
+        
+        if (redisPassword != null && !redisPassword.isEmpty()) {
+            config.setPassword(redisPassword);
+            log.debug("🔐 Reactive Redis 비밀번호 설정됨");
+        } else {
+            log.debug("🔓 Reactive Redis 비밀번호 없음 (인증 없이 연결)");
+        }
+        
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(config);
+        log.info("⚡ ReactiveRedisConnectionFactory 생성 완료 - {}:{}", redisHost, redisPort);
+        return factory;
+    }
+
+    @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
@@ -95,6 +115,12 @@ public class RedisConfig {
                 .build();
         
         log.info("⚡ ReactiveRedisTemplate Bean 생성 완료 - 논블로킹 Redis 클라이언트");
-        return new ReactiveRedisTemplate(connectionFactory, context);
+        return new ReactiveRedisTemplate<>(connectionFactory, context);
+    }
+
+    @Bean
+    public ReactiveStringRedisTemplate reactiveStringRedisTemplate(ReactiveRedisConnectionFactory connectionFactory) {
+        log.info("🔤 ReactiveStringRedisTemplate Bean 생성 완료 - Gateway Rate Limiter용");
+        return new ReactiveStringRedisTemplate(connectionFactory);
     }
 }
