@@ -323,6 +323,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                     log.error("⚠️ Auth Service 통신 실패로 티켓 데이터 없음 (coupleId={})", coupleId);
                     return Mono.empty();
                 });
+
     }
     
     /**
