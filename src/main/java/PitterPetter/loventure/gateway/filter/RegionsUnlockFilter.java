@@ -125,14 +125,24 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             @SuppressWarnings("unchecked")
             Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
             
+            // 전체 claims 로깅으로 디버깅 강화
+            log.debug("📋 JWT 전체 claims: {}", claims);
+            
             String userId = (String) claims.get("user_id");
             String coupleId = (String) claims.get("couple_id");
             
             log.debug("📋 JWT claims 추출 - userId: {}, coupleId: {}", userId, coupleId);
             
-            if (userId == null || coupleId == null) {
-                log.error("❌ JWT 토큰에 필요한 정보가 없습니다 - userId: {}, coupleId: {}", userId, coupleId);
-                throw new IllegalArgumentException("JWT 토큰에 필요한 정보가 없습니다");
+            // 더 상세한 에러 로깅
+            if (userId == null) {
+                log.error("❌ JWT 토큰에 user_id가 없습니다 - 전체 claims: {}", claims);
+                throw new IllegalArgumentException("JWT 토큰에 user_id가 없습니다");
+            }
+            
+            if (coupleId == null) {
+                log.error("❌ JWT 토큰에 couple_id가 없습니다 - 전체 claims: {}", claims);
+                log.error("❌ 사용 가능한 필드들: {}", claims.keySet());
+                throw new IllegalArgumentException("JWT 토큰에 couple_id가 없습니다");
             }
             
             log.debug("✅ JWT 토큰 파싱 성공");
