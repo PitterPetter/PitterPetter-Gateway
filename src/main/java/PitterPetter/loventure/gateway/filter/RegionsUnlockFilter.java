@@ -46,13 +46,14 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getPath().toString();
         String method = exchange.getRequest().getMethod().toString();
+        long startTime = System.currentTimeMillis();
         
         // regions/unlock 경로가 아니면 필터 건너뛰기
         if (!path.equals(TARGET_PATH)) {
             return chain.filter(exchange);
         }
         
-        log.info("🎫 RegionsUnlockFilter 시작 - {} : {}", method, path);
+        log.info("🎫 RegionsUnlockFilter 시작 - {} : {} (요청 ID: {})", method, path, startTime);
         
         try {
             // 1. JWT 토큰에서 userId, coupleId 추출
@@ -70,22 +71,25 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                     // 3. Redis에서 티켓 정보 조회 및 검증
                     return validateTicketAndProcess(exchange, coupleId, regions)
                         .flatMap(isAllowed -> {
+                            long processingTime = System.currentTimeMillis() - startTime;
                             if (isAllowed) {
-                                log.info("✅ 티켓 검증 통과 - regions/unlock 요청 허용");
+                                log.info("✅ 티켓 검증 통과 - regions/unlock 요청 허용 (처리시간: {}ms, 요청 ID: {})", processingTime, startTime);
                                 return chain.filter(exchange);
                             } else {
-                                log.warn("❌ 티켓 검증 실패 - regions/unlock 요청 차단");
+                                log.warn("❌ 티켓 검증 실패 - regions/unlock 요청 차단 (처리시간: {}ms, 요청 ID: {})", processingTime, startTime);
                                 return sendTicketErrorResponse(exchange);
                             }
                         });
                 })
                 .onErrorResume(error -> {
-                    log.error("🚨 RegionsUnlockFilter 에러: {}", error.getMessage(), error);
+                    long processingTime = System.currentTimeMillis() - startTime;
+                    log.error("🚨 RegionsUnlockFilter 에러 (처리시간: {}ms, 요청 ID: {}): {}", processingTime, startTime, error.getMessage(), error);
                     return sendErrorResponse(exchange, "티켓 검증 중 오류가 발생했습니다.");
                 });
                 
         } catch (Exception e) {
-            log.error("🚨 RegionsUnlockFilter 초기화 에러: {}", e.getMessage(), e);
+            long processingTime = System.currentTimeMillis() - startTime;
+            log.error("🚨 RegionsUnlockFilter 초기화 에러 (처리시간: {}ms, 요청 ID: {}): {}", processingTime, startTime, e.getMessage(), e);
             return sendErrorResponse(exchange, "티켓 검증 중 오류가 발생했습니다.");
         }
     }

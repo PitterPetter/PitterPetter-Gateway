@@ -192,8 +192,9 @@ public class RedisService {
      */
     public Mono<Boolean> updateCoupleTicketInfoWriteThrough(String coupleId, Object ticketData) {
         String key = "coupleId:" + coupleId;
+        long startTime = System.currentTimeMillis();
         
-        log.info("🔄 Write-Through 패턴 시작 - coupleId: {}", coupleId);
+        log.info("🔄 Write-Through 패턴 시작 - coupleId: {} (작업 ID: {})", coupleId, startTime);
         
         // 1. Redis에 데이터 저장
         return reactiveRedisTemplate.opsForValue()
@@ -209,13 +210,17 @@ public class RedisService {
                 }
             })
             .doOnSuccess(success -> {
+                long processingTime = System.currentTimeMillis() - startTime;
                 if (success) {
-                    log.info("🎉 Write-Through 패턴 완료 - coupleId: {}", coupleId);
+                    log.info("🎉 Write-Through 패턴 완료 - coupleId: {} (처리시간: {}ms, 작업 ID: {})", coupleId, processingTime, startTime);
                 } else {
-                    log.error("❌ Write-Through 패턴 실패 - coupleId: {}", coupleId);
+                    log.error("❌ Write-Through 패턴 실패 - coupleId: {} (처리시간: {}ms, 작업 ID: {})", coupleId, processingTime, startTime);
                 }
             })
-            .doOnError(error -> log.error("🚨 Write-Through 패턴 에러 - coupleId: {}, error: {}", coupleId, error.getMessage()));
+            .doOnError(error -> {
+                long processingTime = System.currentTimeMillis() - startTime;
+                log.error("🚨 Write-Through 패턴 에러 - coupleId: {} (처리시간: {}ms, 작업 ID: {}), error: {}", coupleId, processingTime, startTime, error.getMessage());
+            });
     }
     
     /**
