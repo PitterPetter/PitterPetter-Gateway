@@ -53,7 +53,9 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		Claims claims = jwtUtil.extractClaims(token); // 토큰 Payload에 담긴 Claims 꺼내기
 		
 		// 2. 토큰 추출 결과 로그
-		log.info("FilterChain에서 토큰 추출 결과 - userId : {}", claims.get("user_id"));
+		String userId = (String) claims.get("userId"); // JWT 토큰에서 userId 클레임 추출
+		String coupleId = (String) claims.get("coupleId"); // JWT 토큰에서 coupleId 클레임 추출
+		log.info("FilterChain에서 토큰 추출 결과 - userId : {}, coupleId : {}", userId, coupleId);
 		
 		// 4. 인가 성공 시 라우팅 정보 로그 - 실제 라우팅 후 로그
 		return chain.filter(exchange).doFinally(signalType -> {
