@@ -33,28 +33,6 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		log.info("{} : {}", method, path);
 
 		if (isPublic(path)) { // isPublic(path)에서 정의한 리스트에 해당하면 인증 검사 건너뜀
-			// PUBLIC_PATHS이지만 AI 서비스로의 요청인 경우 JWT 토큰을 전달
-			if (path.startsWith("/api/recommends")) {
-				log.info("AI 서비스 요청 감지: {}", path);
-				String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-				log.info("Authorization 헤더 존재 여부: {}", authHeader != null);
-				
-				if (authHeader != null && authHeader.startsWith("Bearer ")) {
-					String token = authHeader.replace("Bearer ", "").trim();
-					log.info("JWT 토큰 추출 완료, 길이: {}", token.length());
-					
-					if (jwtUtil.isValidToken(token)) {
-						Claims claims = jwtUtil.extractClaims(token);
-						String userId = (String) claims.get("userId");
-						String coupleId = (String) claims.get("coupleId");
-						log.info("AI 서비스로 JWT 토큰 전달 - userId : {}, coupleId : {}", userId, coupleId);
-					} else {
-						log.warn("JWT 토큰이 유효하지 않음");
-					}
-				} else {
-					log.warn("Authorization 헤더가 없거나 Bearer 형식이 아님: {}", authHeader);
-				}
-			}
 			return chain.filter(exchange);
 		}
 
