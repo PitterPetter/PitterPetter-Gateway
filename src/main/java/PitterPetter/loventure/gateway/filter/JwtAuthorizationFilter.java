@@ -59,8 +59,10 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		
 		// 3. 파싱된 정보를 ServerWebExchange attributes에 저장
 		log.debug("💾 ServerWebExchange attributes에 사용자 정보 저장 시작");
-		exchange.getAttributes().put("userId", userId);
-		// coupleId가 null이 아닌 경우에만 저장 (ConcurrentHashMap은 null 값을 허용하지 않음)
+		// userId와 coupleId가 null이 아닌 경우에만 저장 (ConcurrentHashMap은 null 값을 허용하지 않음)
+		if (userId != null) {
+			exchange.getAttributes().put("userId", userId);
+		}
 		if (coupleId != null) {
 			exchange.getAttributes().put("coupleId", coupleId);
 		}
