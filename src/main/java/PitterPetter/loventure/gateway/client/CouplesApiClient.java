@@ -1,5 +1,7 @@
 package PitterPetter.loventure.gateway.client;
 
+import java.time.Duration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,8 +15,6 @@ import PitterPetter.loventure.gateway.exception.CouplesApiException;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
-
-import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -111,7 +111,40 @@ public class CouplesApiClient {
                 log.info("🏁 API 호출 완료 - signalType: {}, 총 소요시간: {}ms", signalType, responseTime);
             });
     }
-    
-    // Write-Through 패턴으로 인해 PUT API 호출이 불필요
-    // Redis Stream 이벤트를 통해 Auth Service가 자동으로 동기화됨
+
+    /**
+     * Auth Service에서 티켓 차감 요청
+     */
+    public Mono<Boolean> consumeTicket(String coupleId, String jwtToken) {
+        log.info("🎫 Auth Service에 티켓 차감 요청 - coupleId: {}", coupleId);
+        
+        return couplesWebClient
+            .post()
+            .uri("/{coupleId}/ticket/consume", coupleId)
+            .header("Authorization", "Bearer " + jwtToken)
+            .header("Accept", "application/json")
+            .retrieve()
+            .onStatus(HttpStatusCode::is4xxClientError, response -> {
+                log.warn("티켓 차감 API client error: {}", response.statusCode());
+                return response.bodyToMono(String.class)
+                    .flatMap(body -> Mono.error(new CouplesApiException(
+                        "Client error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
+            })
+            .onStatus(HttpStatusCode::is5xxServerError, response -> {
+                log.error("티켓 차감 API server error: {}", response.statusCode());
+                return response.bodyToMono(String.class)
+                    .flatMap(body -> Mono.error(new CouplesApiException(
+                        "Server error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
+            })
+            .bodyToMono(Boolean.class)
+            .timeout(Duration.ofSeconds(5))
+            .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
+                .filter(throwable -> throwable instanceof WebClientResponseException))
+            .doOnSuccess(response -> {
+                log.info("✅ 티켓 차감 성공 - coupleId: {}, result: {}", coupleId, response);
+            })
+            .doOnError(error -> {
+                log.error("❌ 티켓 차감 실패 - coupleId: {}, error: {}", coupleId, error.getMessage());
+            });
+    }
 }
