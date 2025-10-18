@@ -399,35 +399,6 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         log.debug("  - jwtToken 존재: {}", jwtToken != null);
         
         if (ticket > 0) {
-<<<<<<< HEAD
-            // 티켓 1 차감하고 허용
-            log.info("✅ 티켓 1 차감 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
-            log.debug("📊 티켓 차감 상세:");
-            log.debug("  - 현재 티켓: {}", ticket);
-            log.debug("  - 차감 후 티켓: {}", ticket - 1);
-            log.debug("  - 차감량: 1");
-            
-            Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
-            log.debug("🔄 티켓 정보 업데이트 시작");
-            log.debug("📊 업데이트 전 ticketMap: {}", ticketMap);
-            
-            updatedTicketMap.put("coupleId", redisCoupleId); // coupleId를 string으로 저장
-            updatedTicketMap.put("ticket", ticket - 1);
-            updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
-            
-            log.debug("📊 업데이트 후 updatedTicketMap: {}", updatedTicketMap);
-            
-            log.debug("📊 업데이트된 티켓 정보 - updatedTicketMap: {}", updatedTicketMap);
-            log.debug("📊 업데이트 상세:");
-            log.debug("  - coupleId: {} → {}", ticketMap.get("coupleId"), updatedTicketMap.get("coupleId"));
-            log.debug("  - ticket: {} → {}", ticketMap.get("ticket"), updatedTicketMap.get("ticket"));
-            log.debug("  - lastSyncedAt: {} → {}", ticketMap.get("lastSyncedAt"), updatedTicketMap.get("lastSyncedAt"));
-            
-            // Write-Through 패턴으로 자동 동기화됨 (별도 API 호출 불필요)
-            log.info("🔄 Write-Through 패턴으로 Auth Service 자동 동기화 예정 - coupleId: {}", coupleId);
-            
-            return Mono.just(updatedTicketMap);
-=======
             // Auth Service에 티켓 차감 요청
             log.info("🎫 Auth Service에 티켓 차감 요청 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
             
@@ -454,7 +425,6 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                     log.error("❌ 티켓 차감 중 오류 - coupleId: {}, error: {}", coupleId, error.getMessage());
                     return Mono.error(new RuntimeException("티켓 차감 중 오류가 발생했습니다"));
                 });
->>>>>>> 9e71105 (feat: update Gateway for proper unlock flow separation)
             
         } else {
             // 티켓 부족으로 차단
