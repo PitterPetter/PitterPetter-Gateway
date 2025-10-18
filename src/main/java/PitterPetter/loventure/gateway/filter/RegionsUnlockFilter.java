@@ -1,7 +1,6 @@
 package PitterPetter.loventure.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -319,18 +318,10 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             })
             .doOnError(error -> log.error("❌ Auth Service 티켓 정보 조회 실패 - coupleId: {}, error: {}", 
                                          coupleId, error.getMessage()))
-<<<<<<< HEAD
-                .onErrorResume(error -> {
-                    log.error("⚠️ Auth Service 통신 실패로 티켓 데이터 없음 (coupleId={})", coupleId);
-                    return Mono.empty();
-                });
-
-=======
             .onErrorResume(error -> {
                 log.error("❌ Auth Service 티켓 정보 조회 실패로 빈 Mono 반환 - coupleId: {}", coupleId);
                 return Mono.empty();
             });
->>>>>>> 9e71105 (feat: update Gateway for proper unlock flow separation)
     }
     
     /**

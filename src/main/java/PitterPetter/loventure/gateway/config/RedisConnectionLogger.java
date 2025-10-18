@@ -1,16 +1,17 @@
 package PitterPetter.loventure.gateway.config;
 
-import PitterPetter.loventure.gateway.scheduler.RedisDailyResetScheduler;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.time.Duration;
+import java.util.Properties;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
-import java.util.Properties;
+import PitterPetter.loventure.gateway.scheduler.RedisDailyResetScheduler;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -47,13 +48,12 @@ public class RedisConnectionLogger implements ApplicationListener<ApplicationRea
                 
             } else {
                 log.error("❌ Redis 연결 실패 - 응답 값 불일치 (예상: OK, 실제: {})", result);
-                throw new RuntimeException("Redis 응답 값 불일치");
+                log.warn("⚠️ Redis 없이 서비스 계속 실행 (일부 기능 제한)");
             }
             
         } catch (Exception e) {
-            log.error("❌ Redis 연결 실패: {}", e.getMessage());
-            log.error("💥 서비스 시작 불가 - Redis 연결이 필요합니다");
-            throw new RuntimeException("Redis 연결 실패로 서비스 시작 불가", e);
+            log.warn("⚠️ Redis 연결 실패: {} - Redis 없이 서비스 계속 실행", e.getMessage());
+            log.info("ℹ️ 일부 기능(캐싱, 스케줄러)이 제한됩니다");
         }
     }
     
