@@ -37,8 +37,8 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     private final RedisService redisService;
     private final CouplesApiClient couplesApiClient;
     
-    // 필터가 적용될 경로
-    private static final String TARGET_PATH = "/api/regions/unlock";
+    // 필터가 적용될 경로 - 티켓 해금(reward unlock)에만 적용
+    private static final String TARGET_PATH = "/api/regions/unlock/reward";
     
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -319,11 +319,18 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             })
             .doOnError(error -> log.error("❌ Auth Service 티켓 정보 조회 실패 - coupleId: {}, error: {}", 
                                          coupleId, error.getMessage()))
+<<<<<<< HEAD
                 .onErrorResume(error -> {
                     log.error("⚠️ Auth Service 통신 실패로 티켓 데이터 없음 (coupleId={})", coupleId);
                     return Mono.empty();
                 });
 
+=======
+            .onErrorResume(error -> {
+                log.error("❌ Auth Service 티켓 정보 조회 실패로 빈 Mono 반환 - coupleId: {}", coupleId);
+                return Mono.empty();
+            });
+>>>>>>> 9e71105 (feat: update Gateway for proper unlock flow separation)
     }
     
     /**
@@ -379,7 +386,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     /**
      * 티켓 비즈니스 로직 처리
      * 티켓이 있으면 1 차감하고 허용, 없으면 차단
-     * Write-Through 패턴으로 인해 별도의 API 호출이 불필요
+     * Auth Service에 실제 티켓 차감 요청
      */
     private Mono<Map<String, Object>> processTicketLogic(String coupleId, Map<String, Object> ticketMap, 
                                                          int ticket, String jwtToken, String redisCoupleId) {
@@ -392,33 +399,32 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         log.debug("  - jwtToken 존재: {}", jwtToken != null);
         
         if (ticket > 0) {
-            // 티켓 1 차감하고 허용
-            log.info("✅ 티켓 1 차감 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
-            log.debug("📊 티켓 차감 상세:");
-            log.debug("  - 현재 티켓: {}", ticket);
-            log.debug("  - 차감 후 티켓: {}", ticket - 1);
-            log.debug("  - 차감량: 1");
+            // Auth Service에 티켓 차감 요청
+            log.info("🎫 Auth Service에 티켓 차감 요청 - coupleId: {}, ticket: {} → {}", coupleId, ticket, ticket - 1);
             
-            Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
-            log.debug("🔄 티켓 정보 업데이트 시작");
-            log.debug("📊 업데이트 전 ticketMap: {}", ticketMap);
-            
-            updatedTicketMap.put("coupleId", redisCoupleId); // coupleId를 string으로 저장
-            updatedTicketMap.put("ticket", ticket - 1);
-            updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
-            
-            log.debug("📊 업데이트 후 updatedTicketMap: {}", updatedTicketMap);
-            
-            log.debug("📊 업데이트된 티켓 정보 - updatedTicketMap: {}", updatedTicketMap);
-            log.debug("📊 업데이트 상세:");
-            log.debug("  - coupleId: {} → {}", ticketMap.get("coupleId"), updatedTicketMap.get("coupleId"));
-            log.debug("  - ticket: {} → {}", ticketMap.get("ticket"), updatedTicketMap.get("ticket"));
-            log.debug("  - lastSyncedAt: {} → {}", ticketMap.get("lastSyncedAt"), updatedTicketMap.get("lastSyncedAt"));
-            
-            // Write-Through 패턴으로 자동 동기화됨 (별도 API 호출 불필요)
-            log.info("🔄 Write-Through 패턴으로 Auth Service 자동 동기화 예정 - coupleId: {}", coupleId);
-            
-            return Mono.just(updatedTicketMap);
+            return couplesApiClient.consumeTicket(coupleId, jwtToken)
+                .map(success -> {
+                    if (success) {
+                        // 티켓 차감 성공 - Redis 업데이트
+                        Map<String, Object> updatedTicketMap = new java.util.HashMap<>(ticketMap);
+                        updatedTicketMap.put("coupleId", redisCoupleId);
+                        updatedTicketMap.put("ticket", ticket - 1);
+                        updatedTicketMap.put("lastSyncedAt", java.time.OffsetDateTime.now().toString());
+                        
+                        // Redis에 업데이트된 티켓 정보 저장
+                        redisService.updateCoupleTicketInfo(coupleId, updatedTicketMap);
+                        
+                        log.info("✅ 티켓 차감 및 Redis 업데이트 완료 - coupleId: {}, ticket: {}", coupleId, ticket - 1);
+                        return updatedTicketMap;
+                    } else {
+                        log.warn("❌ Auth Service에서 티켓 차감 실패 - coupleId: {}", coupleId);
+                        throw new RuntimeException("티켓 차감 실패");
+                    }
+                })
+                .onErrorResume(error -> {
+                    log.error("❌ 티켓 차감 중 오류 - coupleId: {}, error: {}", coupleId, error.getMessage());
+                    return Mono.error(new RuntimeException("티켓 차감 중 오류가 발생했습니다"));
+                });
             
         } else {
             // 티켓 부족으로 차단
@@ -432,8 +438,8 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         }
     }
     
-    // Write-Through 패턴으로 인해 별도의 비동기 API 호출이 불필요
-    // Redis Stream 이벤트를 통해 Auth Service가 자동으로 동기화됨
+    // Auth Service에 직접 티켓 차감 요청하여 실제 DB 동기화
+    // Redis는 캐시 역할로만 사용
     
     /**
      * 현재 요청에서 JWT 토큰 추출
