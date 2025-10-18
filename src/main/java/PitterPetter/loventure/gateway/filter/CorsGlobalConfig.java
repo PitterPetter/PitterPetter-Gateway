@@ -20,7 +20,7 @@ public class CorsGlobalConfig {
 			"http://localhost:5173", "https://api.loventure.us", "https://loventure.us", "https://argo.loventure.us",
                 "https://accounts.kakao.com", "https://kauth.kakao.com"));
 
-		config.setAllowedMethods(List.of("*")); // 허용할 메쏘드
+		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")); // 허용할 메쏘드
 		config.setAllowedHeaders(List.of("*")); // 허용할 요청 헤더
 		config.setAllowCredentials(true); // Credential 허용
 
