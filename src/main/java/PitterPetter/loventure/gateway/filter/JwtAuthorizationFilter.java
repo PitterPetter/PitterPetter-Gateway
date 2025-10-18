@@ -56,15 +56,31 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		String userId = (String) claims.get("userId"); // JWT 토큰에서 userId 클레임 추출
 		String coupleId = (String) claims.get("coupleId"); // JWT 토큰에서 coupleId 클레임 추출
 		log.info("FilterChain에서 토큰 추출 결과 - userId : {}, coupleId : {}", userId, coupleId);
+		log.debug("🔍 JWT Claims 상세 정보:");
+		log.debug("  - userId 타입: {}, null 여부: {}", userId != null ? userId.getClass().getSimpleName() : "null", userId == null);
+		log.debug("  - coupleId 타입: {}, null 여부: {}", coupleId != null ? coupleId.getClass().getSimpleName() : "null", coupleId == null);
+		log.debug("  - 전체 claims: {}", claims);
 		
 		// 3. 파싱된 정보를 ServerWebExchange attributes에 저장
 		log.debug("💾 ServerWebExchange attributes에 사용자 정보 저장 시작");
 		// userId와 coupleId가 null이 아닌 경우에만 저장 (ConcurrentHashMap은 null 값을 허용하지 않음)
-		if (userId != null) {
-			exchange.getAttributes().put("userId", userId);
-		}
-		if (coupleId != null) {
-			exchange.getAttributes().put("coupleId", coupleId);
+		try {
+			if (userId != null && !userId.isEmpty()) {
+				exchange.getAttributes().put("userId", userId);
+				log.debug("✅ userId 저장 완료: {}", userId);
+			} else {
+				log.warn("⚠️ userId가 null이거나 비어있어 저장하지 않음: {}", userId);
+			}
+			
+			if (coupleId != null && !coupleId.isEmpty()) {
+				exchange.getAttributes().put("coupleId", coupleId);
+				log.debug("✅ coupleId 저장 완료: {}", coupleId);
+			} else {
+				log.debug("ℹ️ coupleId가 null이거나 비어있어 저장하지 않음: {}", coupleId);
+			}
+		} catch (Exception e) {
+			log.error("❌ ServerWebExchange attributes 저장 중 오류 발생: {}", e.getMessage(), e);
+			throw e;
 		}
 		log.info("✅ 사용자 정보를 ServerWebExchange attributes에 저장 완료 - userId: {}, coupleId: {}", userId, coupleId);
 		log.debug("📋 저장된 attributes: {}", exchange.getAttributes());
