@@ -17,8 +17,7 @@ RUN ./gradlew --no-daemon dependencies || true
 # 애플리케이션 소스 복사 후 빌드
 COPY src ./src
 # 테스트는 컨테이너 빌드에서 생략(원하면 제거)
-# 로컬 프로파일로 빌드하여 Config Server 의존성 제거
-RUN ./gradlew --no-daemon bootJar -x test -Dspring.profiles.active=local
+RUN ./gradlew --no-daemon bootJar -x test
 
 # ---- Runtime stage: JRE 17 slim ----
 FROM eclipse-temurin:17-jre-jammy AS runtime
