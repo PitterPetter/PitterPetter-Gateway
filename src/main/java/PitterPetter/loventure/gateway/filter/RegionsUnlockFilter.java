@@ -228,7 +228,10 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
             })
             .doOnError(error -> log.error("❌ Auth Service 티켓 정보 조회 실패 - coupleId: {}, error: {}", 
                                          coupleId, error.getMessage()))
-            .onErrorReturn(null);
+            .onErrorResume(error -> {
+                log.error("❌ Auth Service 티켓 정보 조회 실패로 빈 Mono 반환 - coupleId: {}", coupleId);
+                return Mono.empty();
+            });
     }
     
     /**
