@@ -27,7 +27,7 @@ public class CouplesApiClient {
         log.info("🔄 Auth Service API 호출 시작 - Couples API for ticket info");
         log.debug("🔐 JWT 토큰 확인 - token length: {}", jwtToken != null ? jwtToken.length() : 0);
         log.info("🌐 WebClient 설정 확인 - couplesWebClient: {}", couplesWebClient != null ? "존재" : "null");
-        log.info("📡 API 엔드포인트: GET / (루트 경로)");
+        log.info("📡 API 엔드포인트: GET /ticket");
         log.info("🔑 Authorization 헤더: Bearer {}", jwtToken != null ? jwtToken.substring(0, Math.min(20, jwtToken.length())) + "..." : "null");
 
         //API 호출이 얼마나 오래 걸리는지 측정
@@ -36,7 +36,7 @@ public class CouplesApiClient {
         
         return couplesWebClient
             .get()
-            .uri("")
+            .uri("/ticket")
             .header("Authorization", "Bearer " + jwtToken)
             .header("Accept", "application/json")
             .retrieve()
