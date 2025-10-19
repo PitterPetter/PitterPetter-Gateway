@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import PitterPetter.loventure.gateway.dto.ApiResponse;
 import PitterPetter.loventure.gateway.dto.TicketResponse;
 import PitterPetter.loventure.gateway.exception.CouplesApiException;
 import lombok.RequiredArgsConstructor;
@@ -136,7 +137,16 @@ public class CouplesApiClient {
                     .flatMap(body -> Mono.error(new CouplesApiException(
                         "Server error: " + body, HttpStatus.valueOf(response.statusCode().value()))));
             })
-            .bodyToMono(Boolean.class)
+            .bodyToMono(ApiResponse.class)
+            .map(apiResponse -> {
+                if ("success".equals(apiResponse.status())) {
+                    return (Boolean) apiResponse.data();
+                } else {
+                    throw new CouplesApiException(
+                        "티켓 차감 실패: " + apiResponse.message(), 
+                        HttpStatus.BAD_REQUEST);
+                }
+            })
             .timeout(Duration.ofSeconds(5))
             .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
                 .filter(throwable -> throwable instanceof WebClientResponseException))
