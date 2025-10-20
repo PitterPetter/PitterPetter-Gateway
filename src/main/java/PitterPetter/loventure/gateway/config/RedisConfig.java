@@ -87,7 +87,7 @@ public class RedisConfig {
     @Bean
     @Order(2)
     public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(RedisConnectionFactory connectionFactory) {
-        log.info("⚡ ReactiveRedisTemplate Bean 생성 시작 - 논블로킹 Redis 클라이언트");
+
         log.info("   - ConnectionFactory 타입: {}", connectionFactory.getClass().getSimpleName());
         
         StringRedisSerializer keySerializer = new StringRedisSerializer();
