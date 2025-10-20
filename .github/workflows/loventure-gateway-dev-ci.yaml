@@ -1,8 +1,8 @@
-name: CI for Gateway
+name: CI for Gateway (Dev)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "develop" ]
 
 jobs:
   build-and-deploy:
@@ -24,35 +24,37 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PAT }}
 
-      # Manifest develop 브랜치에서 이미지 태그 가져오기
-      - name: Get Image Tag from Dev Manifest
+      # 태그명 변수화 + 짧게 만들기 (develop 브랜치용)
+      - name: Set Image Version Tag
         id: vars
-        run: |
-          # Manifest develop 브랜치에서 현재 이미지 태그 가져오기
-          git clone https://github.com/PitterPetter/PitterPatter-Manifest.git temp-manifest
-          cd temp-manifest
-          git checkout develop
-          IMAGE_TAG=$(yq eval '.gateway.deployment.image.tag' charts/loventure/values.yaml)
-          echo "sha_short=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "Using image tag from dev manifest: $IMAGE_TAG"
-          cd ..
-          rm -rf temp-manifest
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      # Prod 환경에서는 이미지 빌드 생략하고 Manifest만 업데이트
+      # Docker Image 빌드 및 푸시
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            pitterpetter/gateway:${{ steps.vars.outputs.sha_short }}
+            pitterpetter/gateway:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # ArgoCD가 참조하는 Repository로 checkout
+      # ArgoCD가 참조하는 Repository로 checkout (develop 브랜치)
       - name: Update Manifest Repo
         uses: actions/checkout@v3
         with:
           repository: PitterPetter/PitterPatter-Manifest    # ArgoCD가 바라보는 Organization/Repo
           token: ${{ secrets.GH_PAT }}       # Personal Access Token 필요
           path: manifests
+          ref: develop  # develop 브랜치로 체크아웃
 
       # Manifest Repository에서 Manifest 파일 내의 이미지 태그를 업데이트
       - name: Update image tag in Deployment yaml
         run: |
           cd manifests/charts/loventure
-          # yq를 사용해서 gateway의 image.tag만 업데이트
+          # yq를 사용해서 gateway의 image.tag만 업데이트 (develop 브랜치용)
           yq eval '.gateway.deployment.image.tag = "${{ steps.vars.outputs.sha_short }}"' -i values.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -64,5 +66,8 @@ jobs:
             git diff values.yaml
             git add values.yaml
             git commit -m "ci: Update gateway image to ${{ steps.vars.outputs.sha_short }}"
-            git push origin main
+            git push origin develop
+            
+            # GitHub Secrets에 이미지 태그 저장 (Prod CI에서 사용할 수 있도록)
+            # 이 부분은 GitHub API를 통해 secrets를 업데이트해야 함
           fi
