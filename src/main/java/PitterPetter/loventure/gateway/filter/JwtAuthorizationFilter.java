@@ -158,7 +158,10 @@ public class JwtAuthorizationFilter implements GlobalFilter, Ordered { // filter
 		"/actuator/health",
 		"/api/auth/health",
 		"/api/courses/health",
-		"/api/diaries/health"
+		"/api/diaries/health",
+
+		"/api/recommends",
+		"/api/recommends/**"
 	);
 
 	// PUBLIC_PATHS에 포함되는지 확인
