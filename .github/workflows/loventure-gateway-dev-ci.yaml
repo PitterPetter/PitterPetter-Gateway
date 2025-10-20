@@ -2,7 +2,7 @@ name: CI for Gateway (Dev)
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "dev" ]
 
 jobs:
   build-and-deploy:
@@ -48,7 +48,7 @@ jobs:
           repository: PitterPetter/PitterPatter-Manifest    # ArgoCD가 바라보는 Organization/Repo
           token: ${{ secrets.GH_PAT }}       # Personal Access Token 필요
           path: manifests
-          ref: develop  # develop 브랜치로 체크아웃
+          ref: develop  # Manifest의 develop 브랜치로 체크아웃
 
       # Manifest Repository에서 Manifest 파일 내의 이미지 태그를 업데이트
       - name: Update image tag in Deployment yaml
