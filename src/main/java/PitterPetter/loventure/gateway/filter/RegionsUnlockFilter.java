@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import PitterPetter.loventure.gateway.client.CouplesApiClient;
 import PitterPetter.loventure.gateway.service.RedisService;
+import PitterPetter.loventure.gateway.service.TicketSyncService;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
@@ -35,6 +36,7 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
     private final ObjectMapper objectMapper;
     private final RedisService redisService;
     private final CouplesApiClient couplesApiClient;
+    private final TicketSyncService ticketSyncService;
     
     // 필터가 적용될 경로 - 티켓 해금(reward unlock)에만 적용
     private static final String TARGET_PATH = "/api/regions/unlock/reward";
@@ -96,7 +98,10 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
                             long processingTime = System.currentTimeMillis() - startTime;
                             if (isAllowed) {
                                 log.info("✅ 티켓 검증 통과 - regions/unlock 요청 허용 (처리시간: {}ms, 요청 ID: {})", processingTime, requestId);
-                                return chain.filter(exchange);
+                                
+                                // Territory Service로 전달할 티켓 정보를 헤더에 추가
+                                return addTicketHeadersToRequest(exchange, coupleId)
+                                    .flatMap(modifiedExchange -> chain.filter(modifiedExchange));
                             } else {
                                 log.warn("❌ 티켓 검증 실패 - regions/unlock 요청 차단 (처리시간: {}ms, 요청 ID: {})", processingTime, requestId);
                                 return sendTicketErrorResponse(exchange);
@@ -451,6 +456,38 @@ public class RegionsUnlockFilter implements GlobalFilter, Ordered {
         
         log.debug("❌ JWT 토큰 추출 실패 - Bearer 토큰 없음");
         return null;
+    }
+    
+    /**
+     * Territory Service로 전달할 티켓 정보를 헤더에 추가
+     */
+    private Mono<ServerWebExchange> addTicketHeadersToRequest(ServerWebExchange exchange, String coupleId) {
+        try {
+            log.info("🎟️ Territory Service로 전달할 티켓 헤더 추가 - coupleId: {}", coupleId);
+            
+            // TicketSyncService를 통해 티켓 정보 헤더 생성
+            Map<String, String> ticketHeaders = ticketSyncService.createTicketHeaders(coupleId);
+            
+            // 기존 헤더에 티켓 정보 헤더 추가
+            var modifiedRequest = exchange.getRequest().mutate()
+                .headers(headers -> {
+                    ticketHeaders.forEach(headers::add);
+                    log.debug("📋 추가된 티켓 헤더: {}", ticketHeaders);
+                })
+                .build();
+            
+            // 수정된 요청으로 새로운 ServerWebExchange 생성
+            var modifiedExchange = exchange.mutate()
+                .request(modifiedRequest)
+                .build();
+            
+            log.info("✅ 티켓 헤더 추가 완료 - coupleId: {}, 헤더 수: {}", coupleId, ticketHeaders.size());
+            return Mono.just(modifiedExchange);
+            
+        } catch (Exception e) {
+            log.error("❌ 티켓 헤더 추가 실패 - coupleId: {}, error: {}", coupleId, e.getMessage());
+            return Mono.just(exchange); // 실패 시 원본 exchange 반환
+        }
     }
     
     /**
